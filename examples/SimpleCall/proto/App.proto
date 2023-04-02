@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package ShuHai.gRPC.Examples.Proto.App;
+
+
+service Rpc
+{
+    rpc Launch(LaunchRequest) returns(LaunchReply) {}
+    rpc Shutdown(ShutdownRequest) returns(ShutdownReply) {}
+}
+
+message LaunchRequest
+{
+}
+
+message LaunchReply
+{
+    bool succeed = 1;
+}
+
+message ShutdownRequest
+{
+}
+
+message ShutdownReply
+{
+    bool succeed = 1;
+}

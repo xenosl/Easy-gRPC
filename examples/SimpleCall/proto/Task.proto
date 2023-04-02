@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package ShuHai.gRPC.Examples.Proto.Task;
+
+
+message GeographicPosition
+{
+    double longitude = 1;
+    double latitude = 2;
+    double height = 3;
+}
+
+message Target
+{
+    int32 id = 1;
+    GeographicPosition position = 2;
+}
+
+
+service Rpc
+{
+    rpc StartTask(StartTaskRequest) returns(StartTaskReply) {}
+    rpc GetTarget(GetTargetRequest) returns(GetTargetReply) {}
+    rpc GetTargets(GetTargetsRequest) returns(GetTargetsReply) {}
+}
+
+message StartTaskRequest
+{
+    string codename = 1;
+}
+
+message StartTaskReply
+{
+    bool started = 1;
+}
+
+message GetTargetRequest
+{
+    int32 id = 1;
+}
+
+message GetTargetReply
+{
+    optional Target target = 1;
+}
+
+message GetTargetsRequest
+{
+}
+
+message GetTargetsReply
+{
+    repeated Target targets = 1;
+}

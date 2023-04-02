@@ -1,2 +1,3 @@
-# grpc-quick
-A framework for quick integration and simplified use of gRPC.
+# gRPC-Quick
+
+Tiny grpc wrapper for quick integration and simple use.

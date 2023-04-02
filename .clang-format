@@ -1,0 +1,157 @@
+---
+Language: Cpp
+#RawStringFormats:
+Standard: c++17
+#DisableFormat: false
+
+SortIncludes: Never
+#IncludeBlocks: Preserve
+#IncludeCategories:
+#IncludeIsMainRegex:
+#IncludeIsMainSourceRegex:
+
+#NamespaceMacros: [ ]
+#ForEachMacros: [ ]
+#IfMacros: [ ]
+#StatementAttributeLikeMacros: [ emit ]
+#StatementMacros
+#TypenameMacros: [ ]
+#WhitespaceSensitiveMacros: [ ]
+#MacroBlockBegin:
+#MacroBlockEnd:
+
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+EmptyLineAfterAccessModifier: Never
+SeparateDefinitionBlocks: Always
+#ShortNamespaceLines: 60
+
+CompactNamespaces: true
+NamespaceIndentation: All
+FixNamespaceComments: false
+
+SortUsingDeclarations: false
+
+UseTab: Never
+TabWidth: 4
+IndentWidth: 4
+PPIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+IndentAccessModifiers: false
+IndentCaseBlocks: true
+IndentCaseLabels: false
+AccessModifierOffset: -4
+IndentExternBlock: NoIndent
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+#IndentRequiresClause: false
+IndentWrappedFunctionNames: false
+LambdaBodyIndentation: Signature
+
+PointerAlignment: Left
+QualifierAlignment: Left
+ReferenceAlignment: Left
+AlignAfterOpenBracket: DontAlign
+AlignArrayOfStructures: None
+AlignConsecutiveAssignments: None
+AlignConsecutiveBitFields: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AlignEscapedNewlines: DontAlign
+#AlignOperands: DontAlign
+AlignTrailingComments: false
+
+#QualifierOrder: [ 'inline', 'static', 'constexpr', 'const', 'volatile', 'type' ]
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+#AlwaysBreakAfterReturnType:
+#AlwaysBreakBeforeMultilineStrings:
+AlwaysBreakTemplateDeclarations: Yes
+#AttributeMacros:
+BinPackArguments: false
+BinPackParameters: false
+BitFieldColonSpacing: Both
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  AfterControlStatement: Always
+  BeforeCatch: true
+  BeforeElse: true
+  #BeforeLambdaBody: true
+  BeforeWhile: false
+  #IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+#BreakAfterAttributes: Leave
+#BreakBeforeBinaryOperators: None
+#BreakBeforeConceptDeclarations: false
+#BreakBeforeInlineASMColon:
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: BinPack
+BreakInheritanceList: BeforeComma
+BreakStringLiterals: true
+ColumnLimit: 120
+#CommentPragmas:
+ContinuationIndentWidth: 4
+Cpp11BracedListStyle: false
+#DerivePointerAlignment: true
+#ExperimentalAutoDetectBinPacking:
+
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+#SpaceBeforeParensOptions:
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: Never
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: -1
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+InsertTrailingCommas: None
+
+ReflowComments: false
+
+PenaltyBreakAssignment: 40
+PenaltyBreakBeforeFirstCallParameter: 40
+PenaltyBreakComment: 40
+PenaltyBreakFirstLessLess: 40
+PenaltyBreakOpenParenthesis: 40
+PenaltyBreakString: 40
+PenaltyBreakTemplateDeclaration: 40
+PenaltyExcessCharacter: 40
+PenaltyIndentedWhitespace: 40
+PenaltyReturnTypeOnItsOwnLine: 40
+...
