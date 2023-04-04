@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/Detail/AsyncCallHandlerBase.h"
+#include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
+#include "ShuHai/gRPC/Server/TypeTraits.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -8,6 +9,9 @@
 
 namespace ShuHai::gRPC::Server
 {
+    /**
+     * \brief grpc::ServerCompletionQueue wrapper for handling arbitrary client calls.
+     */
     class CompletionQueue
     {
     public:
@@ -18,6 +22,27 @@ namespace ShuHai::gRPC::Server
         CompletionQueue(const CompletionQueue&) = delete;
         CompletionQueue& operator=(const CompletionQueue&) = delete;
 
+        /**
+         * \brief Register certain rpc call handler corresponding to the specified function AsyncService::Request<RpcName>
+         *  located in the generated code.
+         * \param service Instance of the generated AsyncService class.
+         * \param requestFunc Function address of AsyncService::Request<RpcName> located in generated code.
+         * \param processFunc The function actually take care of the rpc request.
+         */
+        template<typename RequestFunc>
+        void registerCallHandler(typename AsyncRequestFuncTraits<RequestFunc>::ServiceType* service,
+            RequestFunc requestFunc,
+            std::function<void(const typename AsyncRequestFuncTraits<RequestFunc>::RequestType&,
+                typename AsyncRequestFuncTraits<RequestFunc>::ResponseType&)> processFunc)
+        {
+            Detail::AsyncUnaryCallHandler<RequestFunc>::create(service, requestFunc, std::move(processFunc), _queue.get());
+        }
+
+        /**
+         * \brief Block current thread up to the specified \p deadline or any client call arrives.
+         * \param deadline How long to block in wait for a client call.
+         * \return true if a client call is handled or the \p deadline is up, false if the server shutdown.
+         */
         bool poll(const gpr_timespec& deadline = gpr_inf_future(GPR_CLOCK_REALTIME))
         {
             void* tag {};
@@ -37,7 +62,9 @@ namespace ShuHai::gRPC::Server
             }
         }
 
-        [[nodiscard]] grpc::ServerCompletionQueue* queue() const { return _queue.get(); }
+        void shutdown() { _queue->Shutdown(); }
+
+        [[nodiscard]] grpc::ServerCompletionQueue* underlyingQueue() const { return _queue.get(); }
 
     private:
         void handleCall(void* tag, bool ok)

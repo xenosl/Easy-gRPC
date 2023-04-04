@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ShuHai/gRPC/Server/CompletionQueue.h"
 #include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
 
 #include <grpcpp/grpcpp.h>
@@ -26,7 +27,7 @@ namespace ShuHai::gRPC::Server
                 builder.AddListeningPort(uri, grpc::InsecureServerCredentials());
             foreachService([&](auto s) { builder.RegisterService(s); });
 
-            _queue = builder.AddCompletionQueue();
+            _queue = std::make_unique<CompletionQueue>(builder.AddCompletionQueue());
 
             _server = builder.BuildAndStart();
             if (!_server)
@@ -53,7 +54,7 @@ namespace ShuHai::gRPC::Server
                 return;
 
             _server->Shutdown();
-            _queue->Shutdown();
+            _queue->shutdown();
 
             _queueThread->join();
             _queueThread = nullptr;
@@ -66,22 +67,14 @@ namespace ShuHai::gRPC::Server
 
     private:
         std::unique_ptr<grpc::Server> _server;
-        std::unique_ptr<grpc::ServerCompletionQueue> _queue;
+        std::unique_ptr<CompletionQueue> _queue;
 
         void queueWorker()
         {
             while (true)
             {
-                void* tag {};
-                bool ok;
-                if (!_queue->Next(&tag, &ok))
+                if (!_queue->poll())
                     break;
-
-                auto handler = static_cast<Detail::AsyncCallHandlerBase*>(tag);
-                if (ok)
-                    handler->proceed(_queue.get());
-                else
-                    handler->exit();
             }
         }
 
@@ -157,8 +150,7 @@ namespace ShuHai::gRPC::Server
                 typename AsyncRequestFuncTraits<RequestFunc>::ResponseType&)> processFunc)
         {
             using Service = typename AsyncRequestFuncTraits<RequestFunc>::ServiceType;
-            Detail::AsyncUnaryCallHandler<RequestFunc>::create(
-                this->service<Service>(), requestFunc, std::move(processFunc), _queue.get());
+            _queue->registerCallHandler(this->service<Service>(), requestFunc, std::move(processFunc));
         }
     };
 }
