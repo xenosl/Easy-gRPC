@@ -9,71 +9,71 @@ namespace ShuHai
     template<typename F>
     struct FunctionTraits;
 
-    template<typename Ret, typename... Args>
-    struct FunctionTraits<Ret (*)(Args...)>
+    template<typename Result, typename... Args>
+    struct FunctionTraits<Result (*)(Args...)>
     {
-        using ResultType = Ret;
+        using ResultType = Result;
 
         template<size_t I>
-        struct Arg
+        struct Argument
         {
             using Type = std::tuple_element_t<I, std::tuple<Args...>>;
         };
 
         template<size_t I>
-        using ArgT = typename Arg<I>::Type;
+        using ArgumentT = typename Argument<I>::Type;
     };
 
-    template<typename Ret, typename Class, typename... Args>
-    struct FunctionTraits<Ret (Class::*)(Args...) const>
+    template<typename Result, typename Class, typename... Args>
+    struct FunctionTraits<Result (Class::*)(Args...) const>
     {
         static constexpr size_t ArgumentCount = sizeof...(Args);
 
         using ClassType = Class;
-        using ResultType = Ret;
+        using ResultType = Result;
 
         template<size_t I>
-        struct Arg
+        struct Argument
         {
             using Type = std::tuple_element_t<I, std::tuple<Args...>>;
         };
 
         template<size_t I>
-        using ArgT = typename Arg<I>::Type;
+        using ArgumentT = typename Argument<I>::Type;
     };
 
-    template<typename Ret, typename Class, typename... Args>
-    struct FunctionTraits<Ret (Class::*)(Args...)>
+    template<typename Result, typename Class, typename... Args>
+    struct FunctionTraits<Result (Class::*)(Args...)>
     {
         static constexpr size_t ArgumentCount = sizeof...(Args);
 
         using ClassType = Class;
-        using ResultType = Ret;
+        using ResultType = Result;
 
         template<size_t I>
-        struct Arg
+        struct Argument
         {
             using Type = std::tuple_element_t<I, std::tuple<Args...>>;
         };
 
         template<size_t I>
-        using ArgT = typename Arg<I>::Type;
+        using ArgumentT = typename Argument<I>::Type;
     };
 
-    template<typename Ret, typename... Args>
-    struct FunctionTraits<std::function<Ret(Args...)>>
+    template<typename Result, typename... Args>
+    struct FunctionTraits<std::function<Result(Args...)>>
     {
         static constexpr size_t ArgumentCount = sizeof...(Args);
 
-        using ResultType = Ret;
+        using ResultType = Result;
 
         template<size_t I>
-        struct Arg
+        struct Argument
         {
             using Type = std::tuple_element_t<I, std::tuple<Args...>>;
         };
 
         template<size_t I>
-        using ArgT = typename Arg<I>::Type;
+        using ArgumentT = typename Argument<I>::Type;
     };
 }

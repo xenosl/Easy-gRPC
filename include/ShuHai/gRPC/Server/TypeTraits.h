@@ -4,7 +4,6 @@
 #include "ShuHai/TypeTraits.h"
 #include "ShuHai/FunctionTraits.h"
 
-
 namespace ShuHai::gRPC::Server
 {
     /**
@@ -14,9 +13,9 @@ namespace ShuHai::gRPC::Server
     template<typename F>
     struct AsyncRequestFuncTraits
     {
-        using ServiceType = ClassTypeT<F>;
-        using ResponseWriterType = std::remove_pointer_t<ArgumentTypeT<2, F>>;
-        using RequestType = std::remove_pointer_t<ArgumentTypeT<1, F>>;
+        using ServiceType = typename FunctionTraits<F>::ClassType;
+        using ResponseWriterType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<2>>;
+        using RequestType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<1>>;
         using ResponseType = typename StreamingInterfaceTraits<ResponseWriterType>::MessageType;
     };
 }
