@@ -26,9 +26,9 @@ namespace ShuHai::gRPC::Server::Detail
     {
     public:
         using RequestFunc = TRequestFunc;
-        using Service = typename AsyncRequestFuncTraits<TRequestFunc>::ServiceType;
-        using Request = typename AsyncRequestFuncTraits<TRequestFunc>::RequestType;
-        using Response = typename AsyncRequestFuncTraits<TRequestFunc>::ResponseType;
+        using Service = typename AsyncRequestTraits<TRequestFunc>::ServiceType;
+        using Request = typename AsyncRequestTraits<TRequestFunc>::RequestType;
+        using Response = typename AsyncRequestTraits<TRequestFunc>::ResponseType;
         using ProcessFunc = std::function<void(const Request&, Response&)>;
 
         static_assert(std::is_base_of_v<grpc::Service, Service>);

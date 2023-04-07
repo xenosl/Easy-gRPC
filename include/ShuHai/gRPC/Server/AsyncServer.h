@@ -17,17 +17,21 @@ namespace ShuHai::gRPC::Server
     class AsyncServer
     {
     public:
-        explicit AsyncServer(const std::vector<std::string>& listeningUris)
+        explicit AsyncServer(const std::vector<std::string>& listeningUris, size_t numCompletionQueues = 1)
         {
             if (listeningUris.empty())
                 throw std::invalid_argument("At least one listening uri is required.");
+
+            if (numCompletionQueues == 0)
+                numCompletionQueues = std::thread::hardware_concurrency();
 
             grpc::ServerBuilder builder;
             for (const auto& uri : listeningUris)
                 builder.AddListeningPort(uri, grpc::InsecureServerCredentials());
             foreachService([&](auto s) { builder.RegisterService(s); });
 
-            _queue = std::make_unique<CompletionQueue>(builder.AddCompletionQueue());
+            for (size_t i = 0; i < numCompletionQueues; ++i)
+                _queues.emplace_back(std::make_unique<CompletionQueue>(builder.AddCompletionQueue()));
 
             _server = builder.BuildAndStart();
             if (!_server)
@@ -45,40 +49,50 @@ namespace ShuHai::gRPC::Server
             if (started())
                 throw std::logic_error("The server already started.");
 
-            _queueThread = std::make_unique<std::thread>(&AsyncServer::queueWorker, this);
+            for (auto& queue : _queues)
+            {
+                auto t = std::make_unique<std::thread>(
+                    [&]()
+                    {
+                        while (true)
+                        {
+                            if (!queue->poll())
+                                break;
+                        }
+                    });
+                _queueThreads.emplace_back(std::move(t));
+            }
+
+            _started = true;
         }
 
         void stop()
         {
-            if (!_queueThread)
+            if (!started())
                 return;
 
             _server->Shutdown();
-            _queue->shutdown();
 
-            _queueThread->join();
-            _queueThread = nullptr;
+            for (auto& queue : _queues)
+                queue->shutdown();
+
+            for (auto& t : _queueThreads)
+                t->join();
+            _queueThreads.clear();
 
             _server = nullptr;
-            _queue = nullptr;
+            _queues.clear();
         }
 
-        [[nodiscard]] bool started() const { return (bool)_queueThread; }
+        [[nodiscard]] bool started() const { return _started; }
 
     private:
+        std::atomic_bool _started { false };
+
         std::unique_ptr<grpc::Server> _server;
-        std::unique_ptr<CompletionQueue> _queue;
 
-        void queueWorker()
-        {
-            while (true)
-            {
-                if (!_queue->poll())
-                    break;
-            }
-        }
-
-        std::unique_ptr<std::thread> _queueThread;
+        std::vector<std::unique_ptr<CompletionQueue>> _queues;
+        std::vector<std::unique_ptr<std::thread>> _queueThreads;
 
 
         // Services ----------------------------------------------------------------------------------------------------
@@ -146,11 +160,13 @@ namespace ShuHai::gRPC::Server
          */
         template<typename RequestFunc>
         void registerCallHandler(RequestFunc requestFunc,
-            std::function<void(const typename AsyncRequestFuncTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestFuncTraits<RequestFunc>::ResponseType&)> processFunc)
+            std::function<void(const typename AsyncRequestTraits<RequestFunc>::RequestType&,
+                typename AsyncRequestTraits<RequestFunc>::ResponseType&)> processFunc,
+            size_t queueIndex = 0)
         {
-            using Service = typename AsyncRequestFuncTraits<RequestFunc>::ServiceType;
-            _queue->registerCallHandler(this->service<Service>(), requestFunc, std::move(processFunc));
+            using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
+            auto& queue = _queues.at(queueIndex);
+            queue->registerCallHandler(this->service<Service>(), requestFunc, std::move(processFunc));
         }
     };
 }

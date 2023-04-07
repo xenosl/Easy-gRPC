@@ -11,7 +11,7 @@ namespace ShuHai::gRPC::Client
      * \tparam F Type of function Stub::PrepareAsync<RpcName> or Stub::Async<Rpc> in generated code.
      */
     template<typename F>
-    struct AsyncFuncTraits
+    struct AsyncCallTraits
     {
         using StubType = typename FunctionTraits<F>::ClassType;
         using ResponseReaderType = typename FunctionTraits<F>::ResultType::element_type;

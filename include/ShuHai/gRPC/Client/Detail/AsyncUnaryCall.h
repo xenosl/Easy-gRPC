@@ -18,9 +18,9 @@ namespace ShuHai::gRPC::Client::Detail
     {
     public:
         using PrepareFunc = TPrepareFunc;
-        using Stub = typename AsyncFuncTraits<TPrepareFunc>::StubType;
-        using Request = typename AsyncFuncTraits<TPrepareFunc>::RequestType;
-        using Response = typename AsyncFuncTraits<TPrepareFunc>::ResponseType;
+        using Stub = typename AsyncCallTraits<TPrepareFunc>::StubType;
+        using Request = typename AsyncCallTraits<TPrepareFunc>::RequestType;
+        using Response = typename AsyncCallTraits<TPrepareFunc>::ResponseType;
         using ResultCallback = std::function<void(std::future<Response>&&)>;
 
         static_assert(std::is_base_of_v<google::protobuf::Message, Request>);

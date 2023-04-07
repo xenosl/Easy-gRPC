@@ -77,8 +77,8 @@ namespace ShuHai::gRPC::Client
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
         template<typename PrepareFunc>
-        std::future<typename AsyncFuncTraits<PrepareFunc>::ResponseType> call(
-            PrepareFunc prepareFunc, const typename AsyncFuncTraits<PrepareFunc>::RequestType& request)
+        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(
+            PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request)
         {
             using Call = Detail::AsyncUnaryCall<PrepareFunc>;
             return (new Call())->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get());
@@ -92,7 +92,7 @@ namespace ShuHai::gRPC::Client
          * \param callback The callback function for rpc result notification.
          */
         template<typename PrepareFunc>
-        void call(PrepareFunc prepareFunc, const typename AsyncFuncTraits<PrepareFunc>::RequestType& request,
+        void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
             typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback)
         {
             using Call = Detail::AsyncUnaryCall<PrepareFunc>;

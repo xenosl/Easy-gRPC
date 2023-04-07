@@ -11,7 +11,7 @@ namespace ShuHai::gRPC::Server
      * \tparam F Type of function AsyncService::Request<RpcName> in generated code.
      */
     template<typename F>
-    struct AsyncRequestFuncTraits
+    struct AsyncRequestTraits
     {
         using ServiceType = typename FunctionTraits<F>::ClassType;
         using ResponseWriterType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<2>>;

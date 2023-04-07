@@ -30,10 +30,10 @@ namespace ShuHai::gRPC::Server
          * \param processFunc The function actually take care of the rpc request.
          */
         template<typename RequestFunc>
-        void registerCallHandler(typename AsyncRequestFuncTraits<RequestFunc>::ServiceType* service,
+        void registerCallHandler(typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
             RequestFunc requestFunc,
-            std::function<void(const typename AsyncRequestFuncTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestFuncTraits<RequestFunc>::ResponseType&)> processFunc)
+            std::function<void(const typename AsyncRequestTraits<RequestFunc>::RequestType&,
+                typename AsyncRequestTraits<RequestFunc>::ResponseType&)> processFunc)
         {
             Detail::AsyncUnaryCallHandler<RequestFunc>::create(service, requestFunc, std::move(processFunc), _queue.get());
         }
