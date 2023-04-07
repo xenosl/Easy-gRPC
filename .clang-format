@@ -92,9 +92,9 @@ BraceWrapping:
   AfterControlStatement: Always
   BeforeCatch: true
   BeforeElse: true
-  #BeforeLambdaBody: true
+  BeforeLambdaBody: true
   BeforeWhile: false
-  #IndentBraces: false
+  IndentBraces: false
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
