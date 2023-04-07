@@ -1,8 +1,29 @@
-add_library(ShuHai-gRPC INTERFACE)
-add_library(ShuHai::gRPC ALIAS ShuHai-gRPC)
+add_library(gRPC INTERFACE)
 
-target_include_directories(ShuHai-gRPC
+target_include_directories(gRPC
         INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include> $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(ShuHai-gRPC
+target_link_libraries(gRPC
         INTERFACE gRPC::grpc++)
+
+
+set(gRPC_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+set(gRPC_PACKAGE_CONFIG_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-Config.cmake)
+set(gRPC_PACKAGE_CONFIG_VERSION_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-Version-Config.cmake)
+
+install(TARGETS gRPC
+        EXPORT ${PROJECT_NAME}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ShuHai
+        TYPE INCLUDE)
+
+install(EXPORT ${PROJECT_NAME}
+        FILE ${PROJECT_NAME}-Targets.cmake
+        NAMESPACE ShuHai::
+        DESTINATION ${gRPC_INSTALL_DESTINATION})
+
+configure_package_config_file(${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}-Config.cmake.in
+        ${gRPC_PACKAGE_CONFIG_FILE}
+        INSTALL_DESTINATION ${gRPC_INSTALL_DESTINATION})
+install(FILES "${gRPC_PACKAGE_CONFIG_FILE}" #${gRPC_PACKAGE_CONFIG_VERSION_FILE}
+        DESTINATION ${gRPC_INSTALL_DESTINATION})

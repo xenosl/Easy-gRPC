@@ -5,6 +5,9 @@ project(gRPC-Quick)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 include(${PROJECT_SOURCE_DIR}/cmake/gRPC.cmake)
 
 add_subdirectory(gRPC)
