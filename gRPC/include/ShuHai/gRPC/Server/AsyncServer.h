@@ -72,7 +72,6 @@ namespace ShuHai::gRPC::Server
                 return;
 
             _server->Shutdown();
-
             for (auto& queue : _queues)
                 queue->shutdown();
 
