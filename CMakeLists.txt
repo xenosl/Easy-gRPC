@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(gRPC-Quick)
+project(gRPCQuick)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +9,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 include(${PROJECT_SOURCE_DIR}/cmake/gRPC.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/Utilities.cmake)
 
 add_subdirectory(gRPC)
 

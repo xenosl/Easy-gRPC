@@ -68,19 +68,50 @@ function(shuhai_get_target_runtime VAR TARGET)
     set(${VAR} ${PATHS} PARENT_SCOPE)
 endfunction()
 
-# Workaround for copying symbolic link file which "cmake -E copy" do not support.
-function(shuhai_copy_after_build TARGET SOURCES DESTINATION_DIR)
-    if(${CMAKE_SYSTEM_NAME} STREQUAL Linux)
-        foreach(SOURCE ${SOURCES})
-            if(IS_SYMLINK ${SOURCE})
-                #set(SYMLINK_LIST "${SYMLINK_LIST} \"${SOURCE}\"")
-                add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND cp -P ${SOURCE} ${DESTINATION_DIR})
-            else()
-                list(APPEND SOURCE_LIST ${SOURCE})
+function(shuhai_copy_after_build TARGET)
+    cmake_parse_arguments("ARG" # Variable prefix
+            "VERBOSE" # Options
+            "DESTINATION" # One-Value arguments
+            "PATH" # Multi-Value arguments
+            ${ARGN})
+
+    if(NOT ARG_PATH)
+        message(FATAL_ERROR "Missing file/directory path(s) to copy.")
+    endif()
+
+    if(NOT ARG_DESTINATION)
+        message(FATAL_ERROR "Missing destination directory.")
+    endif()
+
+    if(EXISTS ${ARG_DESTINATION} AND NOT IS_DIRECTORY ${ARG_DESTINATION})
+        message(FATAL_ERROR "Destination path does not refer to a directory.")
+    endif()
+
+    foreach(PATH ${ARG_PATH})
+        if(EXISTS ${PATH})
+            list(APPEND PATHS ${PATH})
+        endif()
+    endforeach()
+
+    if(PATHS)
+        if(ARG_VERBOSE)
+            message(STATUS "Copy after build for ${TARGET}:")
+        endif()
+        foreach(PATH ${PATHS})
+            if(ARG_VERBOSE)
+                message(STATUS "  ${PATH}")
             endif()
+            if(IS_DIRECTORY ${PATH})
+                get_filename_component(DIR_NAME ${PATH} NAME)
+                set(COPY_DST ${ARG_DESTINATION}/${DIR_NAME})
+                set(COPY_CMD "copy_directory")
+            else()
+                set(COPY_DST ${ARG_DESTINATION})
+                set(COPY_CMD "copy")
+            endif()
+            add_custom_command(TARGET ${TARGET} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E ${COPY_CMD} ${PATH} ${COPY_DST}
+                    COMMENT "Copy '${PATH}' to ${COPY_DST}")
         endforeach()
-        add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCE_LIST} ${DESTINATION_DIR})
-    else()
-        add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SOURCES} ${DESTINATION_DIR})
     endif()
 endfunction()
