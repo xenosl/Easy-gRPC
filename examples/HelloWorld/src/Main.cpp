@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     auto replyFuture = client.call(&Greeter::Stub::PrepareAsyncSayHello, request);
     handleResult(replyFuture, "Wait");
 
-    // Wait for the all calls done.
+    // Wait for all calls done.
     waitFor(100);
     return EXIT_SUCCESS;
 }
