@@ -3,6 +3,7 @@
 #include "AppRpcClient.h"
 #include "TaskRpcClient.h"
 #include "ShuHai/gRPC/Examples/Console.h"
+#include "ShuHai/gRPC/Examples/Thread.h"
 
 #include <ShuHai/gRPC/Server/AsyncServer.h>
 #include <ShuHai/gRPC/Client/AsyncClient.h>
@@ -16,11 +17,6 @@ using namespace ShuHai::gRPC;
 
 using RpcServer = Server::AsyncServer<Proto::App::Rpc::AsyncService, Proto::Task::Rpc::AsyncService>;
 using RpcClient = Client::AsyncClient<Proto::App::Rpc::Stub, Proto::Task::Rpc::Stub>;
-
-inline void waitFor(int milliseconds)
-{
-    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
-}
 
 template<typename... Stubs>
 void demoGetTarget(TaskRpcClient<Stubs...>& client)
