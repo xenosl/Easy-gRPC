@@ -56,7 +56,7 @@ namespace ShuHai::gRPC::Server
                     {
                         while (true)
                         {
-                            if (!queue->poll())
+                            if (!queue->next())
                                 break;
                         }
                     });
@@ -165,7 +165,7 @@ namespace ShuHai::gRPC::Server
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
             auto& queue = _queues.at(queueIndex);
-            queue->registerCallHandler(this->service<Service>(), requestFunc, std::move(processFunc));
+            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
         }
     };
 }

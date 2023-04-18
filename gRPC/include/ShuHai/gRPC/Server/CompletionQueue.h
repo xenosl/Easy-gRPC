@@ -30,8 +30,8 @@ namespace ShuHai::gRPC::Server
          * \param processFunc The function actually take care of the rpc request.
          */
         template<typename RequestFunc>
-        void registerCallHandler(typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            RequestFunc requestFunc,
+        void registerCallHandler(RequestFunc requestFunc,
+            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
             std::function<void(const typename AsyncRequestTraits<RequestFunc>::RequestType&,
                 typename AsyncRequestTraits<RequestFunc>::ResponseType&)> processFunc)
         {
@@ -39,11 +39,11 @@ namespace ShuHai::gRPC::Server
         }
 
         /**
-         * \brief Block current thread up to the specified \p deadline or any client call arrives.
-         * \param deadline How long to block in wait for a client call.
-         * \return true if a client call is handled or the \p deadline is up, false if the server shutdown.
+         * \brief Block current thread up to the specified \p deadline or any queue event arrives.
+         * \param deadline How long to block in wait for an event.
+         * \return true if an event is handled or the \p deadline is up, false if the server shutdown.
          */
-        bool poll(const gpr_timespec& deadline = gpr_inf_future(GPR_CLOCK_REALTIME))
+        bool next(const gpr_timespec& deadline = gpr_inf_future(GPR_CLOCK_REALTIME))
         {
             void* tag {};
             bool ok;
