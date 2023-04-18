@@ -64,7 +64,7 @@ AlignTrailingComments: false
 #QualifierOrder: [ 'inline', 'static', 'constexpr', 'const', 'volatile', 'type' ]
 
 AllowAllArgumentsOnNextLine: true
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortEnumsOnASingleLine: true
@@ -76,8 +76,8 @@ AllowShortLoopsOnASingleLine: false
 #AlwaysBreakBeforeMultilineStrings:
 AlwaysBreakTemplateDeclarations: Yes
 #AttributeMacros:
-BinPackArguments: false
-BinPackParameters: false
+BinPackArguments: true
+BinPackParameters: true
 BitFieldColonSpacing: Both
 BreakBeforeBraces: Custom
 BraceWrapping:
@@ -144,14 +144,14 @@ InsertTrailingCommas: None
 
 ReflowComments: false
 
-PenaltyBreakAssignment: 40
-PenaltyBreakBeforeFirstCallParameter: 40
-PenaltyBreakComment: 40
-PenaltyBreakFirstLessLess: 40
-PenaltyBreakOpenParenthesis: 40
-PenaltyBreakString: 40
-PenaltyBreakTemplateDeclaration: 40
-PenaltyExcessCharacter: 40
-PenaltyIndentedWhitespace: 40
-PenaltyReturnTypeOnItsOwnLine: 40
+PenaltyBreakAssignment: 60
+PenaltyBreakBeforeFirstCallParameter: 60
+PenaltyBreakComment: 60
+PenaltyBreakFirstLessLess: 60
+PenaltyBreakOpenParenthesis: 60
+PenaltyBreakString: 60
+PenaltyBreakTemplateDeclaration: 60
+PenaltyExcessCharacter: 60
+PenaltyIndentedWhitespace: 60
+PenaltyReturnTypeOnItsOwnLine: 60
 ...

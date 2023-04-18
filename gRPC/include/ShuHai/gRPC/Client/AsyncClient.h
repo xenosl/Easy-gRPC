@@ -8,26 +8,22 @@
 #include <future>
 #include <tuple>
 
-
 namespace ShuHai::gRPC::Client
 {
-    template<typename...Stubs>
+    template<typename... Stubs>
     class AsyncClient
     {
     public:
         explicit AsyncClient(const std::string& targetEndpoint,
             std::shared_ptr<grpc::ChannelCredentials> credentials = grpc::InsecureChannelCredentials(),
-            const grpc::ChannelArguments& channelArguments = { })
+            const grpc::ChannelArguments& channelArguments = {})
         {
             _channel = grpc::CreateCustomChannel(targetEndpoint, credentials, channelArguments);
             _stubs = std::make_tuple(std::make_unique<Stubs>(_channel)...);
             initCall();
         }
 
-        ~AsyncClient()
-        {
-            deinitCall();
-        }
+        ~AsyncClient() { deinitCall(); }
 
     private:
         std::shared_ptr<grpc::Channel> _channel;
@@ -40,10 +36,16 @@ namespace ShuHai::gRPC::Client
         static_assert(StubCount > 0);
 
         template<typename Stub>
-        static constexpr bool isSupportedStubType() { return ((std::is_same_v<Stub, Stubs>) || ...); }
+        static constexpr bool isSupportedStubType()
+        {
+            return ((std::is_same_v<Stub, Stubs>) || ...);
+        }
 
         template<typename Stub>
-        [[nodiscard]] Stub* stub() const { return std::get<indexOfStub<Stub>()>(_stubs).get(); }
+        [[nodiscard]] Stub* stub() const
+        {
+            return std::get<indexOfStub<Stub>()>(_stubs).get();
+        }
 
     private:
         template<typename Stub>
@@ -77,11 +79,15 @@ namespace ShuHai::gRPC::Client
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
         template<typename PrepareFunc>
-        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(
-            PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request)
+        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType>
+        call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
+            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
             using Call = Detail::AsyncUnaryCall<PrepareFunc>;
-            return (new Call())->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get());
+            auto call = new Call();
+            if (contextSetup)
+                contextSetup(call->context());
+            return call->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get());
         }
 
         /**
@@ -93,10 +99,14 @@ namespace ShuHai::gRPC::Client
          */
         template<typename PrepareFunc>
         void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
-            typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback)
+            typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
+            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
             using Call = Detail::AsyncUnaryCall<PrepareFunc>;
-            (new Call())->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get(), std::move(callback));
+            auto call = new Call();
+            if (contextSetup)
+                contextSetup(call->context());
+            call->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get(), std::move(callback));
         }
 
     private:

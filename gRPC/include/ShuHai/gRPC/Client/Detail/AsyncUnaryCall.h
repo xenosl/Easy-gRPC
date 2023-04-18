@@ -10,7 +10,6 @@
 #include <future>
 #include <functional>
 
-
 namespace ShuHai::gRPC::Client::Detail
 {
     template<typename TPrepareFunc>
@@ -29,13 +28,15 @@ namespace ShuHai::gRPC::Client::Detail
         AsyncUnaryCall() = default;
         ~AsyncUnaryCall() override = default;
 
-        std::future<Response> start(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
+        std::future<Response>
+        start(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
         {
             startImpl(stub, prepareFunc, request, queue);
             return _resultPromise.get_future();
         }
 
-        void start(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue, ResultCallback callback)
+        void start(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue,
+            ResultCallback callback)
         {
             startImpl(stub, prepareFunc, request, queue);
             _resultCallback = std::move(callback);
@@ -74,19 +75,18 @@ namespace ShuHai::gRPC::Client::Detail
                 _resultCallback(_resultPromise.get_future());
         }
 
-        [[nodiscard]] const grpc::ClientContext& context() { return _context; }
         [[nodiscard]] const Response& response() const { return _response; }
+
         [[nodiscard]] const grpc::Status& status() const { return _status; }
 
     private:
         void startImpl(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
         {
-            _responseReader = (stub->*prepareFunc)(&_context, request, queue);
+            _responseReader = (stub->*prepareFunc)(&context(), request, queue);
             _responseReader->StartCall();
             _responseReader->Finish(&_response, &_status, this);
         }
 
-        grpc::ClientContext _context;
         std::unique_ptr<grpc::ClientAsyncResponseReader<Response>> _responseReader;
         Response _response;
         grpc::Status _status;
