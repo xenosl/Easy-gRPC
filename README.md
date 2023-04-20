@@ -16,6 +16,43 @@
 
 ## Examples
 
+### Proto/RPC code auto-generation
+
+To make use of gRPC services or Protobuf messages, a proto file is required to define the RPC services and protocol
+messages, generate the corresponding RPC services and messages code through the protoc executable and the
+corresponding gRPC plug-in, and use the generated code to implement custom logic.  
+Doing the work described above manually is undoubtedly cumbersome and error-prone. For this reason, the library provides
+the corresponding CMake function to automatically complete it.  
+Here's an example of typical usage of the CMake function:
+
+```cmake
+shuhai_grpc_add_proto_targets(
+        GENERATOR_TARGET HelloWorld-Proto-Gen
+        LIBRARY_TARGET HelloWorld-Proto
+        PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/helloworld.proto"
+        OUTPUT_DIR "${CMAKE_CURRENT_LIST_DIR}/src/Generated")
+```
+
+The CMake function ``shuhai_grpc_add_proto_targets`` creates 2 targets:
+
+- The target specified by the option ``GENERATOR_TARGET`` is used to generate proto code define by proto files which
+  specified by ``PROTO_FILES`` option, the proto code is automatically generated whenever the specified proto file
+  changed.
+- The target specified by the option ``LIBRARY_TARGET`` is used to build the generated code as a static library, the
+  library target depends on the code generator target above, i.e. whenever the code generator target regenerates the
+  code, the library target rebuilds.
+
+The users' targets can now links the library target to make use of the generated code:
+
+```cmake
+target_link_libraries(HelloWorld
+        PRIVATE HelloWorld-Proto)
+add_dependencies(HelloWorld HelloWorld-Proto)
+```
+
+Now it is guaranteed that the latest proto file and its corresponding code are used every time the target ``HelloWorld``
+builds.
+
 ### Simple unary call
 
 Here's an example shows how to build a server to handle unary calls, and build a client to perform unary calls.  
