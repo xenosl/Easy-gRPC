@@ -22,8 +22,9 @@
 To make use of gRPC services or Protobuf messages, a proto file is required to define the RPC services and protocol
 messages, generate the corresponding RPC services and messages code through the protoc executable and the corresponding
 gRPC plug-in, and use the generated code to implement custom logic.  
-Doing the work described above manually is undoubtedly cumbersome and error-prone. The library provides a CMake function
-to automatically complete the work.  
+Doing the work described above manually is tedious and error-prone. The library provides a CMake function to
+automatically complete the work.
+
 Here's an example of typical usage of the CMake function:
 
 ```cmake
@@ -106,10 +107,10 @@ RpcServer server(12345);
 ```
 
 Define a function using request and response types as parameters to handle custom business logic, and register the
-function to the above server object.  
-Note that:  
-The RPC handler is registered with the generated function which in form of 'AsyncService::Request<RpcName>`;  
-The handler function is called in thread other than your current thread, you should take care of the thread safety.
+function to the above server object. Note that:
+
+- The RPC handler is registered with the generated function which in form of 'AsyncService::Request\<ServiceMethodName\>`.
+- The handler function is called in thread other than your current thread, you should take care of the thread safety.
 
 ```c++
 static void StartTask(const Proto::Task::StartTaskRequest& request, Proto::Task::StartTaskReply& reply)
