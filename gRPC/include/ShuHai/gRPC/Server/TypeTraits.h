@@ -16,6 +16,6 @@ namespace ShuHai::gRPC::Server
         using ServiceType = typename FunctionTraits<F>::ClassType;
         using ResponseWriterType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<2>>;
         using RequestType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<1>>;
-        using ResponseType = typename StreamingInterfaceTraits<ResponseWriterType>::MessageType;
+        using ResponseType = typename StreamingInterfaceTraits<ResponseWriterType>::WriteType;
     };
 }

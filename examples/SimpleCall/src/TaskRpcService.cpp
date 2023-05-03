@@ -1,17 +1,18 @@
 #include "TaskRpcService.h"
 #include "ShuHai/gRPC/Examples/Console.h"
 
-
 namespace ShuHai::gRPC::Examples
 {
-    void TaskRpcService::StartTask(const Proto::Task::StartTaskRequest& request, Proto::Task::StartTaskReply& reply)
+    void TaskRpcService::StartTask(
+        grpc::ServerContext& context, const Proto::Task::StartTaskRequest& request, Proto::Task::StartTaskReply& reply)
     {
         reply.set_started(true);
 
         console().writeLine("TaskRpcService::StartTask %s", request.codename().c_str());
     }
 
-    void TaskRpcService::GetTarget(const Proto::Task::GetTargetRequest& request, Proto::Task::GetTargetReply& reply)
+    void TaskRpcService::GetTarget(
+        grpc::ServerContext& context, const Proto::Task::GetTargetRequest& request, Proto::Task::GetTargetReply& reply)
     {
         auto target = reply.mutable_target();
         target->set_id(request.id());

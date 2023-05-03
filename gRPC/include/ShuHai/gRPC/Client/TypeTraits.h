@@ -16,6 +16,6 @@ namespace ShuHai::gRPC::Client
         using StubType = typename FunctionTraits<F>::ClassType;
         using ResponseReaderType = typename FunctionTraits<F>::ResultType::element_type;
         using RequestType = RemoveConstReferenceT<typename FunctionTraits<F>::template ArgumentT<1>>;
-        using ResponseType = typename StreamingInterfaceTraits<ResponseReaderType>::MessageType;
+        using ResponseType = typename StreamingInterfaceTraits<ResponseReaderType>::ReadType;
     };
 }

@@ -24,7 +24,7 @@ namespace ShuHai::gRPC::Client
     };
 
     /**
-     * \brief Throws when a call request failed to complete.
+     * \brief Throws when a call newCall failed to complete.
      */
     class AsyncQueueError : public std::runtime_error
     {

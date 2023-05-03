@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
     // Build server and start the server.
     Server::AsyncServer<Greeter::AsyncService> server(Port);
     server.registerCallHandler(&Greeter::AsyncService::RequestSayHello,
-        [](const HelloRequest& request, HelloReply& reply)
+        [](grpc::ServerContext& context, const HelloRequest& request, HelloReply& reply)
         {
             // Logic and data behind the server's behavior.
             std::string prefix("Hello ");

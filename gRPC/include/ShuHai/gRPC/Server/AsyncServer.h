@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/CompletionQueue.h"
+#include "ShuHai/gRPC/Server/CompletionQueueWorker.h"
 #include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
 
 #include <grpcpp/grpcpp.h>
@@ -31,7 +31,7 @@ namespace ShuHai::gRPC::Server
             foreachService([&](auto s) { builder.RegisterService(s); });
 
             for (size_t i = 0; i < numCompletionQueues; ++i)
-                _queues.emplace_back(std::make_unique<CompletionQueue>(builder.AddCompletionQueue()));
+                _queues.emplace_back(std::make_unique<CompletionQueueWorker>(builder.AddCompletionQueue()));
 
             _server = builder.BuildAndStart();
             if (!_server)
@@ -56,7 +56,7 @@ namespace ShuHai::gRPC::Server
                     {
                         while (true)
                         {
-                            if (!queue->next())
+                            if (!queue->poll())
                                 break;
                         }
                     });
@@ -90,7 +90,7 @@ namespace ShuHai::gRPC::Server
 
         std::unique_ptr<grpc::Server> _server;
 
-        std::vector<std::unique_ptr<CompletionQueue>> _queues;
+        std::vector<std::unique_ptr<CompletionQueueWorker>> _queues;
         std::vector<std::unique_ptr<std::thread>> _queueThreads;
 
 
@@ -124,10 +124,8 @@ namespace ShuHai::gRPC::Server
         static constexpr size_t indexOfServiceImpl()
         {
             static_assert(I < ServiceCount);
-            constexpr bool match =
-                CheckDerived
-                    ? std::is_base_of_v<Service, std::tuple_element_t<I, ServiceTuple>>
-                    : std::is_same_v<Service, std::tuple_element_t<I, ServiceTuple>>;
+            constexpr bool match = CheckDerived ? std::is_base_of_v<Service, std::tuple_element_t<I, ServiceTuple>>
+                                                : std::is_same_v<Service, std::tuple_element_t<I, ServiceTuple>>;
             if constexpr (match)
                 return I;
             else
@@ -155,12 +153,13 @@ namespace ShuHai::gRPC::Server
          * \brief Register certain rpc call handler corresponding to the specified function AsyncService::Request<RpcName>
          *  located in the generated code.
          * \param requestFunc Function address of AsyncService::Request<RpcName> located in generated code.
-         * \param processFunc The function actually take care of the rpc request.
+         * \param processFunc The function actually take care of the rpc newCall.
          */
         template<typename RequestFunc>
         void registerCallHandler(RequestFunc requestFunc,
-            std::function<void(const typename AsyncRequestTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestTraits<RequestFunc>::ResponseType&)> processFunc,
+            std::function<void(grpc::ServerContext&, const typename AsyncRequestTraits<RequestFunc>::RequestType&,
+                typename AsyncRequestTraits<RequestFunc>::ResponseType&)>
+                processFunc,
             size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;

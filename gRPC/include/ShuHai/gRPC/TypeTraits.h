@@ -1,45 +1,85 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
+#include <grpcpp/support/async_unary_call.h>
+#include <grpcpp/support/async_stream.h>
 
 namespace ShuHai::gRPC
 {
     template<typename T>
     struct StreamingInterfaceTraits;
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ClientReader<M>>
+    template<typename R>
+    struct StreamingInterfaceTraits<grpc::ClientReader<R>>
     {
-        using MessageType = M;
+        using ReadType = R;
     };
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ClientWriter<M>>
+    template<typename W>
+    struct StreamingInterfaceTraits<grpc::ClientWriter<W>>
     {
-        using MessageType = M;
+        using WriteType = W;
     };
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ClientAsyncReader<M>>
+    template<typename R>
+    struct StreamingInterfaceTraits<grpc::ServerReader<R>>
     {
-        using MessageType = M;
+        using ReadType = R;
     };
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ClientAsyncWriter<M>>
+    template<typename W>
+    struct StreamingInterfaceTraits<grpc::ServerWriter<W>>
     {
-        using MessageType = M;
+        using WriteType = W;
     };
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ServerAsyncResponseWriter<M>>
+    template<typename R>
+    struct StreamingInterfaceTraits<grpc::ClientAsyncReader<R>>
     {
-        using MessageType = M;
+        using ReadType = R;
     };
 
-    template<typename M>
-    struct StreamingInterfaceTraits<grpc::ClientAsyncResponseReader<M>>
+    template<typename W>
+    struct StreamingInterfaceTraits<grpc::ClientAsyncWriter<W>>
     {
-        using MessageType = M;
+        using WriteType = W;
+    };
+
+    template<typename W, typename R>
+    struct StreamingInterfaceTraits<grpc::ServerAsyncReader<W, R>>
+    {
+        using WriteType = W;
+        using ReadType = R;
+    };
+
+    template<typename W>
+    struct StreamingInterfaceTraits<grpc::ServerAsyncWriter<W>>
+    {
+        using WriteType = W;
+    };
+
+    template<typename W>
+    struct StreamingInterfaceTraits<grpc::ServerAsyncResponseWriter<W>>
+    {
+        using WriteType = W;
+    };
+
+    template<typename R>
+    struct StreamingInterfaceTraits<grpc::ClientAsyncResponseReader<R>>
+    {
+        using ReadType = R;
+    };
+
+    template<typename W, typename R>
+    struct StreamingInterfaceTraits<grpc::ClientAsyncReaderWriter<W, R>>
+    {
+        using WriteType = W;
+        using ReadType = R;
+    };
+
+    template<typename W, typename R>
+    struct StreamingInterfaceTraits<grpc::ServerAsyncReaderWriter<W, R>>
+    {
+        using WriteType = W;
+        using ReadType = R;
     };
 }

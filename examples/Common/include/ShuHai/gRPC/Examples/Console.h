@@ -25,15 +25,37 @@ namespace ShuHai::gRPC::Examples
 
 
     public:
+        void writeLine(const char* message)
+        {
+            if (!_enabled)
+                return;
+
+            std::lock_guard l(_mutex);
+
+            std::printf("%s\n", message);
+
+            if (_flushImmediately)
+                std::fflush(stdout);
+        }
+
         template<typename... Args>
         void writeLine(const char* format, Args&&... args)
         {
+            if (!_enabled)
+                return;
+
             std::lock_guard l(_mutex);
+
             std::printf(format, std::forward<Args>(args)...);
             std::printf("\n");
+
+            if (_flushImmediately)
+                std::fflush(stdout);
         }
 
     private:
+        bool _enabled = true;
+        bool _flushImmediately = true;
         std::mutex _mutex;
     };
 

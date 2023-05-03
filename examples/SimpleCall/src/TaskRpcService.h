@@ -17,7 +17,9 @@ namespace ShuHai::gRPC::Examples
             server.registerCallHandler(&Service::RequestGetTarget, &GetTarget);
         }
 
-        static void StartTask(const Proto::Task::StartTaskRequest& request, Proto::Task::StartTaskReply& reply);
-        static void GetTarget(const Proto::Task::GetTargetRequest& request, Proto::Task::GetTargetReply& reply);
+        static void StartTask(grpc::ServerContext& context, const Proto::Task::StartTaskRequest& request,
+            Proto::Task::StartTaskReply& reply);
+        static void GetTarget(grpc::ServerContext& context, const Proto::Task::GetTargetRequest& request,
+            Proto::Task::GetTargetReply& reply);
     };
 }
