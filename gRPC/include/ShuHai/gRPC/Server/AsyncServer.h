@@ -153,7 +153,7 @@ namespace ShuHai::gRPC::Server
          * \brief Register certain rpc call handler corresponding to the specified function AsyncService::Request<RpcName>
          *  located in the generated code.
          * \param requestFunc Function address of AsyncService::Request<RpcName> located in generated code.
-         * \param processFunc The function actually take care of the rpc newCall.
+         * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
         void registerCallHandler(RequestFunc requestFunc,

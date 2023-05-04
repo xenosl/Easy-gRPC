@@ -31,19 +31,19 @@ namespace ShuHai::gRPC::Server::Detail
             : AsyncCallHandler<TRequestFunc>(completionQueue, service, requestFunc)
             , _processFunc(std::move(processFunc))
         {
-            newCall();
+            newHandler();
         }
 
-        ~AsyncUnaryCallHandler() { deleteAllCalls(); }
+        ~AsyncUnaryCallHandler() { deleteAllHandlers(); }
 
     private:
-        class Call;
-        using CallCallback = void (AsyncUnaryCallHandler::*)(Call*, bool);
+        class Handler;
+        using HandlerCallback = void (AsyncUnaryCallHandler::*)(Handler*, bool);
 
-        class Call
+        class Handler
         {
         public:
-            explicit Call(AsyncUnaryCallHandler* owner, CallCallback onProcess, CallCallback onFinish)
+            explicit Handler(AsyncUnaryCallHandler* owner, HandlerCallback onProcess, HandlerCallback onFinish)
                 : _owner(owner)
                 , _onProcess(onProcess)
                 , _onFinish(onFinish)
@@ -76,8 +76,8 @@ namespace ShuHai::gRPC::Server::Detail
             void finish(bool ok) { (_owner->*_onFinish)(this, ok); }
 
             AsyncUnaryCallHandler* const _owner;
-            CallCallback _onProcess;
-            CallCallback _onFinish;
+            HandlerCallback _onProcess;
+            HandlerCallback _onFinish;
 
             grpc::ServerContext _context;
             grpc::ServerAsyncResponseWriter<Response> _responseWriter;
@@ -86,48 +86,49 @@ namespace ShuHai::gRPC::Server::Detail
 
         ProcessFunc _processFunc;
 
-        void newCall()
+        void newHandler()
         {
-            auto call = new Call(this, &AsyncUnaryCallHandler::onCallProcess, &AsyncUnaryCallHandler::onCallFinish);
-            _calls.emplace(call);
-            call->request();
+            auto handler =
+                new Handler(this, &AsyncUnaryCallHandler::onHandlerProcess, &AsyncUnaryCallHandler::onHandlerFinish);
+            _handlers.emplace(handler);
+            handler->request();
         }
 
-        bool deleteCall(Call* call)
+        bool deleteHandler(Handler* handler)
         {
-            auto it = _calls.find(call);
-            if (it == _calls.end())
+            auto it = _handlers.find(handler);
+            if (it == _handlers.end())
                 return false;
-            deleteCall(it);
+            deleteHandler(it);
             return true;
         }
 
-        auto deleteCall(typename std::unordered_set<Call*>::iterator it)
+        auto deleteHandler(typename std::unordered_set<Handler*>::iterator it)
         {
-            assert(it != _calls.end());
-            auto call = *it;
-            it = _calls.erase(it);
-            delete call;
+            assert(it != _handlers.end());
+            auto handler = *it;
+            it = _handlers.erase(it);
+            delete handler;
             return it;
         }
 
-        void deleteAllCalls()
+        void deleteAllHandlers()
         {
-            auto it = _calls.begin();
-            while (it != _calls.end())
-                it = deleteCall(it);
+            auto it = _handlers.begin();
+            while (it != _handlers.end())
+                it = deleteHandler(it);
         }
 
-        void onCallProcess(Call* call, bool ok)
+        void onHandlerProcess(Handler* handler, bool ok)
         {
             if (ok)
-                newCall();
+                newHandler();
             else
-                deleteCall(call);
+                deleteHandler(handler);
         }
 
-        void onCallFinish(Call* call, bool ok) { deleteCall(call); }
+        void onHandlerFinish(Handler* handler, bool ok) { deleteHandler(handler); }
 
-        std::unordered_set<Call*> _calls;
+        std::unordered_set<Handler*> _handlers;
     };
 }

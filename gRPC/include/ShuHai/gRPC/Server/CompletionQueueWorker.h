@@ -31,7 +31,7 @@ namespace ShuHai::gRPC::Server
          *  located in the generated code.
          * \param service Instance of the generated AsyncService class.
          * \param requestFunc Function address of AsyncService::Request<RpcName> located in generated code.
-         * \param processFunc The function actually take care of the rpc newCall.
+         * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
         void registerCallHandler(RequestFunc requestFunc,
