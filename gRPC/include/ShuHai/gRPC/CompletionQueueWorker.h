@@ -53,7 +53,6 @@ namespace ShuHai::gRPC
 
         void shutdown() { _queue->Shutdown(); }
 
-    protected:
         [[nodiscard]] Queue* queue() const { return _queue.get(); }
 
     private:

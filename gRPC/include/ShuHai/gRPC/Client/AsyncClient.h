@@ -20,14 +20,86 @@ namespace ShuHai::gRPC::Client
             const grpc::ChannelArguments& channelArguments = {})
         {
             _channel = grpc::CreateCustomChannel(targetEndpoint, credentials, channelArguments);
-            _stubs = std::make_tuple(std::make_unique<Stubs>(_channel)...);
-            initCall();
+            initStubs();
+            initCompletionQueue();
         }
 
-        ~AsyncClient() { deinitCall(); }
+        ~AsyncClient() { deinitCompletionQueue(); }
 
     private:
         std::shared_ptr<grpc::Channel> _channel;
+
+
+        // Calls -------------------------------------------------------------------------------------------------------
+    public:
+        /**
+         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
+         *  Get result by the returning std::future<ResponseType> object.
+         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
+         * \param request The rpc parameter.
+         * \return A std::future<ResponseType> object used to obtain the rpc result.
+         */
+        template<typename PrepareFunc>
+        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(PrepareFunc prepareFunc,
+            const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
+            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
+        {
+            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
+            auto call = new Call();
+            if (contextSetup)
+                contextSetup(call->context());
+            return call->start(stub<typename Call::Stub>(), prepareFunc, request, _cqWorker->queue());
+        }
+
+        /**
+         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
+         *  Get notification and result by a callback function.
+         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
+         * \param request The rpc parameter.
+         * \param callback The callback function for rpc result notification.
+         */
+        template<typename PrepareFunc>
+        void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
+            typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
+            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
+        {
+            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
+            auto call = new Call();
+            if (contextSetup)
+                contextSetup(call->context());
+            call->start(stub<typename Call::Stub>(), prepareFunc, request, _cqWorker->queue(), std::move(callback));
+        }
+
+        // Queue Worker ------------------------------------------------------------------------------------------------
+    private:
+        using CqWorker = CompletionQueueWorker<grpc::CompletionQueue>;
+
+        void initCompletionQueue()
+        {
+            _cqWorker = std::make_unique<CqWorker>(std::make_unique<grpc::CompletionQueue>());
+
+            _cqThread = std::thread(
+                [this]()
+                {
+                    while (true)
+                    {
+                        if (!_cqWorker->poll())
+                            break;
+                    }
+                });
+        }
+
+        void deinitCompletionQueue()
+        {
+            _cqWorker->shutdown();
+
+            _cqThread.join();
+
+            _cqWorker = nullptr;
+        }
+
+        std::unique_ptr<CqWorker> _cqWorker;
+        std::thread _cqThread;
 
 
         // Stubs -------------------------------------------------------------------------------------------------------
@@ -66,84 +138,9 @@ namespace ShuHai::gRPC::Client
                 return indexOfStubImpl<I + 1, Stub>();
         }
 
+        void initStubs() { _stubs = std::make_tuple(std::make_unique<Stubs>(_channel)...); }
+
         using StubTuple = std::tuple<std::unique_ptr<Stubs>...>;
         StubTuple _stubs;
-
-
-        // Calls -------------------------------------------------------------------------------------------------------
-    public:
-        /**
-         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
-         *  Get result by the returning std::future<ResponseType> object.
-         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
-         * \param request The rpc parameter.
-         * \return A std::future<ResponseType> object used to obtain the rpc result.
-         */
-        template<typename PrepareFunc>
-        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(PrepareFunc prepareFunc,
-            const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
-            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
-        {
-            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
-            auto call = new Call();
-            if (contextSetup)
-                contextSetup(call->context());
-            return call->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get());
-        }
-
-        /**
-         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
-         *  Get notification and result by a callback function.
-         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
-         * \param request The rpc parameter.
-         * \param callback The callback function for rpc result notification.
-         */
-        template<typename PrepareFunc>
-        void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
-            typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
-            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
-        {
-            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
-            auto call = new Call();
-            if (contextSetup)
-                contextSetup(call->context());
-            call->start(stub<typename Call::Stub>(), prepareFunc, request, _callQueue.get(), std::move(callback));
-        }
-
-    private:
-        void initCall()
-        {
-            _callQueue = std::make_unique<grpc::CompletionQueue>();
-
-            _callThread = std::make_unique<std::thread>(&AsyncClient::callQueueWorker, this);
-        }
-
-        void deinitCall()
-        {
-            _callQueue->Shutdown();
-
-            _callThread->join();
-            _callThread = nullptr;
-
-            _callQueue = nullptr;
-        }
-
-        void callQueueWorker()
-        {
-            void* tag;
-            bool ok;
-            while (_callQueue->Next(&tag, &ok))
-            {
-                auto call = static_cast<Detail::AsyncCallBase*>(tag);
-                if (ok)
-                    call->finish();
-                else
-                    call->throws();
-                delete call;
-            }
-        }
-
-        std::unique_ptr<grpc::CompletionQueue> _callQueue;
-        std::unique_ptr<std::thread> _callThread;
     };
 }

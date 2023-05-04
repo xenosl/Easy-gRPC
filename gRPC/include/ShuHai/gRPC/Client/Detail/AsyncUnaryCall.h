@@ -3,6 +3,7 @@
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/Exceptions.h"
 #include "ShuHai/gRPC/Client/Detail/AsyncCallBase.h"
+#include "ShuHai/gRPC/CompletionQueueNotification.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
@@ -42,6 +43,18 @@ namespace ShuHai::gRPC::Client::Detail
             _resultCallback = std::move(callback);
         }
 
+        [[nodiscard]] const Response& response() const { return _response; }
+
+        [[nodiscard]] const grpc::Status& status() const { return _status; }
+
+    private:
+        void startImpl(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
+        {
+            _responseReader = (stub->*prepareFunc)(&context(), request, queue);
+            _responseReader->StartCall();
+            _responseReader->Finish(&_response, &_status, new GcqNotification([this](bool ok) { onFinished(ok); }));
+        }
+
         void finish() override
         {
             try
@@ -75,16 +88,14 @@ namespace ShuHai::gRPC::Client::Detail
                 _resultCallback(_resultPromise.get_future());
         }
 
-        [[nodiscard]] const Response& response() const { return _response; }
-
-        [[nodiscard]] const grpc::Status& status() const { return _status; }
-
-    private:
-        void startImpl(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
+        void onFinished(bool ok)
         {
-            _responseReader = (stub->*prepareFunc)(&context(), request, queue);
-            _responseReader->StartCall();
-            _responseReader->Finish(&_response, &_status, this);
+            if (ok)
+                finish();
+            else
+                throws();
+
+            delete this;
         }
 
         std::unique_ptr<grpc::ClientAsyncResponseReader<Response>> _responseReader;
