@@ -2,30 +2,30 @@
 
 #include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
-#include "ShuHai/gRPC/CompletionQueueNotification.h"
-
-#include <grpcpp/grpcpp.h>
+#include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <unordered_set>
 #include <utility>
 
 namespace ShuHai::gRPC::Server
 {
-    /**
-     * \brief grpc::ServerCompletionQueue wrapper for handling arbitrary client calls.
-     */
-    class CompletionQueueWorker
+    class CompletionQueueWorker : public gRPC::CompletionQueueWorker<grpc::ServerCompletionQueue>
     {
     public:
+        using Base = gRPC::CompletionQueueWorker<grpc::ServerCompletionQueue>;
+
         explicit CompletionQueueWorker(std::unique_ptr<grpc::ServerCompletionQueue> queue)
-            : _queue(std::move(queue))
+            : Base(std::move(queue))
         { }
 
-        ~CompletionQueueWorker() { deleteAllCallHandlers(); }
+        ~CompletionQueueWorker() override { deleteAllCallHandlers(); }
 
         CompletionQueueWorker(const CompletionQueueWorker&) = delete;
         CompletionQueueWorker& operator=(const CompletionQueueWorker&) = delete;
 
+
+        // CallHandlers ------------------------------------------------------------------------------------------------
+    public:
         /**
          * \brief Register certain rpc call handler corresponding to the specified function AsyncService::Request<RpcName>
          *  located in the generated code.
@@ -44,46 +44,6 @@ namespace ShuHai::gRPC::Server
             newUnaryCallHandler(requestFunc, service, std::move(processFunc));
         }
 
-        /**
-         * \brief Block current thread up to the specified \p deadline or any queue event arrives.
-         * \param deadline How long to block in wait for an event.
-         * \return true if an event is handled or the \p deadline is up, false if the server shutdown.
-         */
-        bool poll(const gpr_timespec& deadline = gpr_inf_future(GPR_CLOCK_REALTIME))
-        {
-            void* tag {};
-            bool ok;
-            auto status = _queue->AsyncNext(&tag, &ok, deadline);
-            switch (status)
-            {
-            case grpc::CompletionQueue::SHUTDOWN:
-                return false;
-            case grpc::CompletionQueue::GOT_EVENT:
-                notifyComplete(tag, ok);
-                return true;
-            case grpc::CompletionQueue::TIMEOUT:
-                return true;
-            default:
-                throw std::runtime_error("Unsupported completion queue status.");
-            }
-        }
-
-        void shutdown() { _queue->Shutdown(); }
-
-        [[nodiscard]] grpc::ServerCompletionQueue* underlyingQueue() const { return _queue.get(); }
-
-    private:
-        static void notifyComplete(void* tag, bool ok)
-        {
-            auto n = static_cast<CqNotification*>(tag);
-            n->complete(ok);
-            delete n;
-        }
-
-        std::unique_ptr<grpc::ServerCompletionQueue> _queue;
-
-
-        // CallHandlers ------------------------------------------------------------------------------------------------
     private:
         using CallHandlerSet = std::unordered_set<Detail::AsyncCallHandlerBase*>;
 
@@ -94,8 +54,8 @@ namespace ShuHai::gRPC::Server
                 typename AsyncRequestTraits<RequestFunc>::ResponseType&)>
                 processFunc)
         {
-            auto handler = new Detail::AsyncUnaryCallHandler<RequestFunc>(
-                _queue.get(), service, requestFunc, std::move(processFunc));
+            auto handler =
+                new Detail::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
             _callHandlers.emplace(handler);
             return handler;
         }

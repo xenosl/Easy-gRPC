@@ -28,8 +28,8 @@ namespace ShuHai::gRPC::Client::Detail
         AsyncUnaryCall() = default;
         ~AsyncUnaryCall() override = default;
 
-        std::future<Response>
-        start(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
+        std::future<Response> start(
+            Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
         {
             startImpl(stub, prepareFunc, request, queue);
             return _resultPromise.get_future();

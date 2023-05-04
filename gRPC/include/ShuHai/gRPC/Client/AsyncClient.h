@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ShuHai/gRPC/CompletionQueueWorker.h"
 #include "ShuHai/gRPC/Client/Detail/AsyncUnaryCall.h"
 
 #include <grpcpp/grpcpp.h>
@@ -79,8 +80,8 @@ namespace ShuHai::gRPC::Client
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
         template<typename PrepareFunc>
-        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType>
-        call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
+        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(PrepareFunc prepareFunc,
+            const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
             using Call = Detail::AsyncUnaryCall<PrepareFunc>;
