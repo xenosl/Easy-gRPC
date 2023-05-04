@@ -75,10 +75,6 @@ namespace ShuHai::gRPC::Server
     private:
         static void notifyComplete(void* tag, bool ok)
         {
-            // TODO: Distinguish type of tags to identify actual queue operation: Request, Write, Finish, Read, Shutdown, etc.
-            if (!ok)
-                return;
-
             auto n = static_cast<CqNotification*>(tag);
             n->complete(ok);
             delete n;

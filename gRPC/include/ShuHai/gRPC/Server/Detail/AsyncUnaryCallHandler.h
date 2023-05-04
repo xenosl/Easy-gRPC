@@ -120,9 +120,9 @@ namespace ShuHai::gRPC::Server::Detail
 
         void onCallProcess(Call* call, bool ok)
         {
-            newCall();
-
-            if (!ok)
+            if (ok)
+                newCall();
+            else
                 deleteCall(call);
         }
 
