@@ -1,6 +1,6 @@
 #pragma once
 
-namespace ShuHai::gRPC::Client::Detail
+namespace ShuHai::gRPC::Client::Internal
 {
     class AsyncCallBase
     {

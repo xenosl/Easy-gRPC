@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/CompletionQueueWorker.h"
-#include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
+#include "ShuHai/gRPC/Server/Internal/AsyncUnaryCallHandler.h"
 
 #include <grpcpp/grpcpp.h>
 

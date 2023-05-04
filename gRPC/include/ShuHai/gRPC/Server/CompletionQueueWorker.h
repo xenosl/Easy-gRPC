@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/Detail/AsyncUnaryCallHandler.h"
+#include "ShuHai/gRPC/Server/Internal/AsyncUnaryCallHandler.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
@@ -45,7 +45,7 @@ namespace ShuHai::gRPC::Server
         }
 
     private:
-        using CallHandlerSet = std::unordered_set<Detail::AsyncCallHandlerBase*>;
+        using CallHandlerSet = std::unordered_set<Internal::AsyncCallHandlerBase*>;
 
         template<typename RequestFunc>
         auto newUnaryCallHandler(RequestFunc requestFunc,
@@ -55,7 +55,7 @@ namespace ShuHai::gRPC::Server
                 processFunc)
         {
             auto handler =
-                new Detail::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
+                new Internal::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
             _callHandlers.emplace(handler);
             return handler;
         }

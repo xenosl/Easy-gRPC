@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
-#include "ShuHai/gRPC/Client/Detail/AsyncUnaryCall.h"
+#include "ShuHai/gRPC/Client/Internal/AsyncUnaryCall.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -44,7 +44,7 @@ namespace ShuHai::gRPC::Client
             const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
+            using Call = Internal::AsyncUnaryCall<PrepareFunc>;
             auto call = new Call();
             if (contextSetup)
                 contextSetup(call->context());
@@ -60,10 +60,10 @@ namespace ShuHai::gRPC::Client
          */
         template<typename PrepareFunc>
         void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
-            typename Detail::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
+            typename Internal::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Detail::AsyncUnaryCall<PrepareFunc>;
+            using Call = Internal::AsyncUnaryCall<PrepareFunc>;
             auto call = new Call();
             if (contextSetup)
                 contextSetup(call->context());

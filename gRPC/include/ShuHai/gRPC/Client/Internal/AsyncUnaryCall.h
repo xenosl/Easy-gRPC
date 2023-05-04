@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/Exceptions.h"
-#include "ShuHai/gRPC/Client/Detail/AsyncCallBase.h"
+#include "ShuHai/gRPC/Client/Internal/AsyncCallBase.h"
 #include "ShuHai/gRPC/CompletionQueueNotification.h"
 
 #include <grpcpp/grpcpp.h>
@@ -11,7 +11,7 @@
 #include <future>
 #include <functional>
 
-namespace ShuHai::gRPC::Client::Detail
+namespace ShuHai::gRPC::Client::Internal
 {
     template<typename TPrepareFunc>
     class AsyncUnaryCall : public AsyncCallBase
