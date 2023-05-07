@@ -17,5 +17,10 @@ namespace ShuHai::gRPC::Server
         using ResponseWriterType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<2>>;
         using RequestType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<1>>;
         using ResponseType = typename StreamingInterfaceTraits<ResponseWriterType>::WriteType;
+
+        static constexpr RpcType RpcType = StreamingInterfaceTraits<ResponseWriterType>::RpcType;
     };
+
+    template<typename F, RpcType T, typename Result>
+    using EnableIfRpcTypeMatch = std::enable_if_t<AsyncRequestTraits<F>::RpcType == T, Result>;
 }

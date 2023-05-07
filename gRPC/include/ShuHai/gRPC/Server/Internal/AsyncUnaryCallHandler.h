@@ -24,6 +24,7 @@ namespace ShuHai::gRPC::Server::Internal
         using Service = typename Base::Service;
         using Request = typename Base::Request;
         using Response = typename Base::Response;
+        using ResponseWriter = typename Base::ResponseWriter;
         using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, Response&)>;
 
         explicit AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,
@@ -36,6 +37,10 @@ namespace ShuHai::gRPC::Server::Internal
 
         ~AsyncUnaryCallHandler() { deleteAllHandlers(); }
 
+    private:
+        ProcessFunc _processFunc;
+
+        // Handlers ----------------------------------------------------------------------------------------------------
     private:
         class Handler;
         using HandlerCallback = void (AsyncUnaryCallHandler::*)(Handler*, bool);
@@ -80,11 +85,9 @@ namespace ShuHai::gRPC::Server::Internal
             HandlerCallback _onFinish;
 
             grpc::ServerContext _context;
-            grpc::ServerAsyncResponseWriter<Response> _responseWriter;
+            ResponseWriter _responseWriter;
             Request _request;
         };
-
-        ProcessFunc _processFunc;
 
         void newHandler()
         {

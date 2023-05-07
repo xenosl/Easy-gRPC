@@ -2,6 +2,7 @@
 
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 #include "ShuHai/gRPC/Client/Internal/AsyncUnaryCall.h"
+#include "ShuHai/gRPC/Client/Internal/AsyncServerStream.h"
 
 #include <grpcpp/grpcpp.h>
 

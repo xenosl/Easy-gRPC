@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/Internal/AsyncUnaryCallHandler.h"
+#include "ShuHai/gRPC/Server/Internal/AsyncServerStreamHandler.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
@@ -27,38 +28,36 @@ namespace ShuHai::gRPC::Server
         // CallHandlers ------------------------------------------------------------------------------------------------
     public:
         /**
-         * \brief Register certain rpc call handler corresponding to the specified function AsyncService::Request<RpcName>
+         * \brief Register certain unary call handler corresponding to the specified function AsyncService::Request<RpcName>
          *  located in the generated code.
          * \param service Instance of the generated AsyncService class.
          * \param requestFunc Function address of AsyncService::Request<RpcName> located in generated code.
          * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
-        void registerCallHandler(RequestFunc requestFunc,
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::NORMAL_RPC, void> registerCallHandler(RequestFunc requestFunc,
             typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            std::function<void(grpc::ServerContext&, const typename AsyncRequestTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestTraits<RequestFunc>::ResponseType&)>
-                processFunc)
+            typename Internal::AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc)
         {
             static_assert(std::is_member_function_pointer_v<RequestFunc>);
-            newUnaryCallHandler(requestFunc, service, std::move(processFunc));
+            auto handler =
+                new Internal::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
+            _callHandlers.emplace(handler);
+        }
+
+        template<typename RequestFunc>
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::SERVER_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
+            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
+            typename Internal::AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc)
+        {
+            static_assert(std::is_member_function_pointer_v<RequestFunc>);
+            auto handler = new Internal::AsyncServerStreamHandler<RequestFunc>(
+                queue(), service, requestFunc, std::move(processFunc));
+            _callHandlers.emplace(handler);
         }
 
     private:
         using CallHandlerSet = std::unordered_set<Internal::AsyncCallHandlerBase*>;
-
-        template<typename RequestFunc>
-        auto newUnaryCallHandler(RequestFunc requestFunc,
-            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            std::function<void(grpc::ServerContext&, const typename AsyncRequestTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestTraits<RequestFunc>::ResponseType&)>
-                processFunc)
-        {
-            auto handler =
-                new Internal::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
-            _callHandlers.emplace(handler);
-            return handler;
-        }
 
         void deleteAllCallHandlers()
         {

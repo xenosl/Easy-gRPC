@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/CompletionQueueWorker.h"
-#include "ShuHai/gRPC/Server/Internal/AsyncUnaryCallHandler.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -156,11 +155,17 @@ namespace ShuHai::gRPC::Server
          * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
-        void registerCallHandler(RequestFunc requestFunc,
-            std::function<void(grpc::ServerContext&, const typename AsyncRequestTraits<RequestFunc>::RequestType&,
-                typename AsyncRequestTraits<RequestFunc>::ResponseType&)>
-                processFunc,
-            size_t queueIndex = 0)
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::NORMAL_RPC, void> registerCallHandler(RequestFunc requestFunc,
+            typename Internal::AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+        {
+            using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
+            auto& queue = _queues.at(queueIndex);
+            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+        }
+
+        template<typename RequestFunc>
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::SERVER_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
+            typename Internal::AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
             auto& queue = _queues.at(queueIndex);
