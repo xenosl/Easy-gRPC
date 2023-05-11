@@ -12,14 +12,16 @@ namespace ShuHai::gRPC::Examples
     public:
         using AsyncClient = Client::AsyncClient<Stubs...>;
 
-        explicit AppRpcClient(AsyncClient& client) : _client(client) { }
+        explicit AppRpcClient(AsyncClient& client)
+            : _client(client)
+        { }
 
         auto Launch(const Proto::App::LaunchRequest& request,
             std::function<void(const Proto::App::LaunchReply&)> onSucceed = nullptr,
             std::function<void(const grpc::Status&)> onFailed = nullptr)
         {
             return _client.call(
-                &Proto::App::Rpc::Stub::PrepareAsyncLaunch, request, std::move(onSucceed), std::move(onFailed));
+                &Proto::App::Rpc::Stub::AsyncLaunch, request, std::move(onSucceed), std::move(onFailed));
         }
 
     private:

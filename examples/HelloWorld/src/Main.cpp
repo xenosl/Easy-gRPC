@@ -58,11 +58,11 @@ void unaryCall(AsyncClient& client)
     request.set_name("user");
 
     // Call and get response by callback.
-    client.call(&Greeter::Stub::PrepareAsyncSayHello, request,
-        [](std::future<HelloReply>&& f) { handleResult(f, "Callback"); });
+    client.call(
+        &Greeter::Stub::AsyncSayHello, request, [](std::future<HelloReply>&& f) { handleResult(f, "Callback"); });
 
     // Call and wait for the response
-    auto replyFuture = client.call(&Greeter::Stub::PrepareAsyncSayHello, request);
+    auto replyFuture = client.call(&Greeter::Stub::AsyncSayHello, request);
     handleResult(replyFuture, "Wait");
 }
 

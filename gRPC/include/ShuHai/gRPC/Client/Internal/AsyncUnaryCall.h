@@ -51,7 +51,6 @@ namespace ShuHai::gRPC::Client::Internal
         void startImpl(Stub* stub, PrepareFunc prepareFunc, const Request& request, grpc::CompletionQueue* queue)
         {
             _responseReader = (stub->*prepareFunc)(&context(), request, queue);
-            _responseReader->StartCall();
             _responseReader->Finish(&_response, &_status, new GcqNotification([this](bool ok) { onFinished(ok); }));
         }
 

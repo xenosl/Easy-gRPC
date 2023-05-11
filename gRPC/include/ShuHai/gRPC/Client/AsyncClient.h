@@ -34,9 +34,9 @@ namespace ShuHai::gRPC::Client
         // Calls -------------------------------------------------------------------------------------------------------
     public:
         /**
-         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
+         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
          *  Get result by the returning std::future<ResponseType> object.
-         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
+         * \param prepareFunc The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
@@ -53,9 +53,9 @@ namespace ShuHai::gRPC::Client
         }
 
         /**
-         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Prepare<RpcName>.
+         * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
          *  Get notification and result by a callback function.
-         * \param prepareFunc The function address of Stub::Prepare<RpcName> which need to be executed.
+         * \param prepareFunc The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \param callback The callback function for rpc result notification.
          */
