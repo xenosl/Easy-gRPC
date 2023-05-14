@@ -43,13 +43,25 @@ void registerUnaryCallHandler(AsyncServer& server)
 
 void registerServerStreamHandler(AsyncServer& server)
 {
-    //server.registerCallHandler(&Greeter::AsyncService::RequestSayHelloServerStream,
-    //    [](grpc::ServerContext& context, const HelloRequest& request, auto& streamWriter)
-    //    {
-    //        // Logic and data behind the server's behavior.
-    //        std::string prefix("Hello ");
-    //        reply.set_message(prefix + request.name());
-    //    });
+    auto makeReply = [](const HelloRequest& request, int n)
+    {
+        HelloReply reply;
+        reply.set_message("Hello " + request.name() + " - " + std::to_string(n));
+        return std::move(reply);
+    };
+
+    server.registerCallHandler(&Greeter::AsyncService::RequestSayHelloServerStream,
+        [makeReply = std::move(makeReply)](
+            grpc::ServerContext& context, const HelloRequest& request, auto& streamWriter)
+        {
+            // Logic and data behind the server's behavior.
+            std::string prefix("Hello ");
+            streamWriter.write(makeReply(request, 1));
+            streamWriter.write(makeReply(request, 2));
+            streamWriter.write(makeReply(request, 3));
+            streamWriter.write(makeReply(request, 4));
+            streamWriter.finish();
+        });
 }
 
 void unaryCall(AsyncClient& client)
@@ -64,6 +76,18 @@ void unaryCall(AsyncClient& client)
     // Call and wait for the response
     auto replyFuture = client.call(&Greeter::Stub::AsyncSayHello, request);
     handleResult(replyFuture, "Wait");
+}
+
+void serverStream(AsyncClient& client)
+{
+    HelloRequest request;
+    request.set_name("user");
+
+    client.call(&Greeter::Stub::AsyncSayHelloServerStream, request,
+        [](const HelloReply& reply)
+        {
+            console().writeLine("[%s] SayHello reply: %s", "ServerStreamCallback", reply.message().c_str());
+        });
 }
 
 int main(int argc, char* argv[])
@@ -82,6 +106,7 @@ int main(int argc, char* argv[])
     // Build client.
     AsyncClient client("localhost:" + std::to_string(Port));
     unaryCall(client);
+    serverStream(client);
 
     // Wait for all calls done.
     waitFor(100);

@@ -11,6 +11,7 @@ namespace ShuHai::gRPC
 {
     /**
      * \brief grpc::CompletionQueue wrapper for its polling and event handling.
+     *  Note: The class con only handle events tagged by CompletionQueueNotification.
      */
     template<typename Queue>
     class CompletionQueueWorker

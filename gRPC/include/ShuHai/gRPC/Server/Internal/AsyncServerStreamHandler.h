@@ -3,104 +3,155 @@
 #include "ShuHai/gRPC/Server/Internal/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/CompletionQueueNotification.h"
 
-#include <condition_variable>
-#include <unordered_map>
+#include <atomic>
+#include <mutex>
+#include <unordered_set>
+#include <queue>
+#include <optional>
 
 namespace ShuHai::gRPC::Server::Internal
 {
     template<typename TRequestFunc>
     class AsyncServerStreamHandler;
 
-    enum class AsyncStreamState
+    enum class AsyncServerStreamState
     {
-        Ready,
-        Streaming,
-        StreamDone,
-        Finished
+        ReadyWrite,
+        Writing,
+        WriteDone,
+        Finish
     };
 
     template<typename TRequestFunc>
-    class ServerStreamWriter
+    class AsyncServerStreamWriter
     {
     public:
         using RequestFunc = TRequestFunc;
         using Response = typename AsyncRequestTraits<TRequestFunc>::ResponseType;
 
-        void write(const Response& message, grpc::WriteOptions options)
+        void write(Response message, grpc::WriteOptions options = {})
         {
-            if (_state == AsyncStreamState::StreamDone)
-                throw std::logic_error("Last message already written, no more message is allowed.");
-            if (_state == AsyncStreamState::Finished)
-                throw std::logic_error("Stream finished, no more message is allowed.");
-
-            if (_state == AsyncStreamState::Ready)
-                _state = AsyncStreamState::Streaming;
-
-            assert(_state == AsyncStreamState::Streaming);
-            if (options.is_last_message())
-                _state = AsyncStreamState::StreamDone;
-
-            waitForWriterReady();
-            _writerReady = false;
-            _writer.Write(message, options, new GcqNotification([this](bool ok) { onWritten(ok); }));
+            auto state = _state.load();
+            switch (state)
+            {
+            case AsyncServerStreamState::ReadyWrite:
+                writeImpl(message, options);
+                break;
+            case AsyncServerStreamState::Writing:
+                appendResponse(std::move(message), options);
+                break;
+            case AsyncServerStreamState::WriteDone:
+                throw std::logic_error("Last message is written, no more message is allowed.");
+            case AsyncServerStreamState::Finish:
+                throw std::logic_error("Attempt to write to a finished stream.");
+            }
         }
 
         void finish()
         {
-            if (_state == AsyncStreamState::Finished)
+            if (_state == AsyncServerStreamState::Finish)
                 return;
 
-            _state = AsyncStreamState::Finished;
+            if (_state == AsyncServerStreamState::Writing)
+                _pendingFinish = true;
+            else
+                finishImpl();
+        }
 
-            waitForWriterReady();
-            _writerReady = false;
+        [[nodiscard]] AsyncServerStreamState state() const { return _state; }
+
+        AsyncServerStreamWriter(grpc::ServerAsyncWriter<Response>& writer, std::function<void(bool)> onFinished)
+            : _writer(writer)
+            , _onFinished(std::move(onFinished))
+        { }
+
+    private:
+        struct PendingResponse
+        {
+            Response message;
+            grpc::WriteOptions options;
+        };
+
+        void appendResponse(Response message, grpc::WriteOptions options)
+        {
+            std::lock_guard l(_pendingResponsesMutex);
+
+            if (!_pendingResponses.empty())
+            {
+                const auto& last = _pendingResponses.back();
+                if (last.options.is_last_message())
+                    throw std::logic_error("Last message is pended, no more message is allowed.");
+            }
+
+            _pendingResponses.emplace(PendingResponse { std::move(message), options });
+        }
+
+        std::optional<PendingResponse> takePendingResponse()
+        {
+            std::lock_guard l(_pendingResponsesMutex);
+
+            if (_pendingResponses.empty())
+                return std::nullopt;
+
+            auto pr = std::move(_pendingResponses.front());
+            _pendingResponses.pop();
+            return std::move(pr);
+        }
+
+        void writeImpl(const PendingResponse& response) { writeImpl(response.message, response.options); }
+
+        void writeImpl(const Response& message, grpc::WriteOptions options)
+        {
+            assert(_state == AsyncServerStreamState::ReadyWrite);
+
+            _state = AsyncServerStreamState::Writing;
+            _writer.Write(message, options,
+                new GcqNotification([this, isLast = options.is_last_message()](bool ok) { onWritten(ok, isLast); }));
+        }
+
+        void finishImpl()
+        {
+            assert(_state != AsyncServerStreamState::Finish);
+
+            _state = AsyncServerStreamState::Finish;
             _writer.Finish(grpc::Status::OK, new GcqNotification([this](bool ok) { onFinished(ok); }));
         }
 
-        [[nodiscard]] AsyncStreamState state() const { return _state; }
-
-    private:
-        friend class AsyncServerStreamHandler<RequestFunc>;
-        using Callback = std::function<void(bool)>;
-
-        explicit ServerStreamWriter(grpc::ServerContext* context, Callback onWriterNotification)
-            : _writer(context)
-            , _onWriterNotify(std::move(onWriterNotification))
-        { }
-
-        void waitForWriterReady()
+        void onWritten(bool ok, bool isLast)
         {
-            std::unique_lock l(_writerMutex);
-            _writerCv.wait(l, [this] { return _writerReady; });
-        }
+            if (ok)
+            {
+                _state = isLast ? AsyncServerStreamState::WriteDone : AsyncServerStreamState::ReadyWrite;
 
-        void markWriterReady()
-        {
-            _writerReady = true;
-            _writerCv.notify_one();
-        }
-
-        void onWritten(bool ok)
-        {
-            markWriterReady();
-            _onWriterNotify(ok);
+                auto pendingResponse = takePendingResponse();
+                if (pendingResponse)
+                    writeImpl(pendingResponse.value());
+                else if (_pendingFinish)
+                    finishImpl();
+            }
+            else
+            {
+                finishImpl();
+            }
         }
 
         void onFinished(bool ok)
         {
-            markWriterReady();
-            _onWriterNotify(ok);
+            _state = AsyncServerStreamState::Finish;
+
+            _onFinished(ok);
         }
 
-        bool _writerReady = true;
-        std::mutex _writerMutex;
-        std::condition_variable _writerCv;
+        std::atomic<AsyncServerStreamState> _state { AsyncServerStreamState::ReadyWrite };
 
-        grpc::ServerAsyncWriter<Response> _writer;
+        std::mutex _pendingResponsesMutex;
+        std::queue<PendingResponse> _pendingResponses;
 
-        std::atomic<AsyncStreamState> _state { AsyncStreamState::Ready };
+        std::atomic_bool _pendingFinish { false };
 
-        Callback _onWriterNotify;
+        grpc::ServerAsyncWriter<Response>& _writer;
+
+        std::function<void(bool)> _onFinished;
     };
 
     template<typename TRequestFunc>
@@ -112,126 +163,83 @@ namespace ShuHai::gRPC::Server::Internal
         using Service = typename Base::Service;
         using Request = typename Base::Request;
         using Response = typename Base::Response;
-        using ResponseWriter = typename Base::ResponseWriter;
-        using StreamWriter = ServerStreamWriter<RequestFunc>;
-        using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, StreamWriter&)>;
+        using ServerStreamWriter = AsyncServerStreamWriter<RequestFunc>;
+        using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, ServerStreamWriter&)>;
 
         explicit AsyncServerStreamHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,
             RequestFunc requestFunc, ProcessFunc processFunc)
             : AsyncCallHandler<TRequestFunc>(completionQueue, service, requestFunc)
             , _processFunc(std::move(processFunc))
         {
-            newHandler();
+            new Handler(this);
         }
 
-        ~AsyncServerStreamHandler() { deleteAllHandlers(); }
+        ~AsyncServerStreamHandler() { destroyHandlers(); }
 
     private:
+        using ResponseWriter = typename Base::ResponseWriter;
+
+        static_assert(std::is_same_v<grpc::ServerAsyncWriter<Response>, ResponseWriter>);
+
         ProcessFunc _processFunc;
 
 
     private:
-        class Handler;
-        using HandlerCallback = void (AsyncServerStreamHandler::*)(Handler*, bool);
-
         class Handler
         {
         public:
-            explicit Handler(AsyncServerStreamHandler* owner, HandlerCallback onProcess, HandlerCallback onFinish)
+            explicit Handler(AsyncServerStreamHandler* owner)
                 : _owner(owner)
-                //, _onProcess(onProcess)
-                //, _onFinish(onFinish)
-                , _streamWriter(&_context, [this](bool ok) { onStreamWriterNotify(ok); })
-            { }
-
-            void request()
+                , _rawWriter(&_context)
+                , _serverStreamWriter(_rawWriter, [this](bool ok) { onStreamWriterFinished(ok); })
             {
                 auto cq = _owner->_completionQueue;
                 auto service = _owner->_service;
                 auto requestFunc = _owner->_requestFunc;
 
-                (service->*requestFunc)(&_context, &_request, &_streamWriter._writer, cq, cq,
-                    new GcqNotification([&](bool ok) { process(ok); }));
+                (service->*requestFunc)(&_context, &_request, &_rawWriter, cq, cq,
+                    new GcqNotification([&](bool ok) { onRequestResult(ok); }));
+
+                _owner->_handlers.emplace(this);
             }
+
+            ~Handler() { _owner->_handlers.erase(this); }
 
         private:
-            void process(bool ok)
-            {
-                (_owner->*_onProcess)(this, ok);
-
-                if (!ok)
-                    return;
-
-                _owner->_processFunc(_context, _request, _streamWriter);
-            }
-
-            void onStreamWriterNotify(bool ok)
+            void onRequestResult(bool ok)
             {
                 if (ok)
                 {
-                    auto state = _streamWriter.state();
-                    if (state == StreamWriter::AsyncStreamState::Finished)
-                        _owner->deleteHandler(this);
+                    new Handler(_owner);
+                    _owner->_processFunc(_context, _request, _serverStreamWriter);
                 }
-                else
+                else // Server shutdown
                 {
-                    _owner->deleteHandler(this);
+                    delete this;
                 }
             }
 
-            //void finish(bool ok) { (_owner->*_onFinish)(this, ok); }
+            void onStreamWriterFinished(bool ok) { delete this; }
 
             AsyncServerStreamHandler* const _owner;
-            //HandlerCallback _onProcess;
-            //HandlerCallback _onFinish;
 
             grpc::ServerContext _context;
-            StreamWriter _streamWriter;
+
             Request _request;
+
+            ResponseWriter _rawWriter;
+            ServerStreamWriter _serverStreamWriter;
         };
 
-        void newHandler()
-        {
-            auto handler = new Handler(
-                this, &AsyncServerStreamHandler::onHandlerProcess, &AsyncServerStreamHandler::onHandlerFinish);
-            _handlers.emplace(handler);
-            handler->request();
-        }
-
-        bool deleteHandler(Handler* handler)
-        {
-            auto it = _handlers.find(handler);
-            if (it == _handlers.end())
-                return false;
-            deleteHandler(it);
-            return true;
-        }
-
-        auto deleteHandler(typename std::unordered_set<Handler*>::iterator it)
-        {
-            assert(it != _handlers.end());
-            auto handler = *it;
-            it = _handlers.erase(it);
-            delete handler;
-            return it;
-        }
-
-        void deleteAllHandlers()
+        void destroyHandlers()
         {
             auto it = _handlers.begin();
             while (it != _handlers.end())
-                it = deleteHandler(it);
+            {
+                delete *it;
+                it = _handlers.erase(it);
+            }
         }
-
-        void onHandlerProcess(Handler* handler, bool ok)
-        {
-            if (ok)
-                newHandler();
-            else
-                deleteHandler(handler);
-        }
-
-        //void onHandlerFinish(Handler* handler, bool ok) { deleteHandler(handler); }
 
         std::unordered_set<Handler*> _handlers;
     };

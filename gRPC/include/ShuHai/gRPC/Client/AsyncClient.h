@@ -36,40 +36,60 @@ namespace ShuHai::gRPC::Client
         /**
          * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
          *  Get result by the returning std::future<ResponseType> object.
-         * \param prepareFunc The function address of Stub::Async<RpcName> which need to be executed.
+         * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
-        template<typename PrepareFunc>
-        std::future<typename AsyncCallTraits<PrepareFunc>::ResponseType> call(PrepareFunc prepareFunc,
-            const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
+        template<typename AsyncCall>
+        EnableIfRpcTypeMatch<AsyncCall, RpcType::NORMAL_RPC,
+            std::future<typename AsyncCallTraits<AsyncCall>::ResponseType>>
+        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Internal::AsyncUnaryCall<PrepareFunc>;
+            using Call = Internal::AsyncUnaryCall<AsyncCall>;
             auto call = new Call();
             if (contextSetup)
-                contextSetup(call->context());
-            return call->start(stub<typename Call::Stub>(), prepareFunc, request, _cqWorker->queue());
+                contextSetup(call->context);
+            return call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue());
         }
 
         /**
          * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
          *  Get notification and result by a callback function.
-         * \param prepareFunc The function address of Stub::Async<RpcName> which need to be executed.
+         * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \param callback The callback function for rpc result notification.
          */
-        template<typename PrepareFunc>
-        void call(PrepareFunc prepareFunc, const typename AsyncCallTraits<PrepareFunc>::RequestType& request,
-            typename Internal::AsyncUnaryCall<PrepareFunc>::ResultCallback callback,
+        template<typename AsyncCall>
+        EnableIfRpcTypeMatch<AsyncCall, RpcType::NORMAL_RPC, void> call(AsyncCall asyncCall,
+            const typename AsyncCallTraits<AsyncCall>::RequestType& request,
+            typename Internal::AsyncUnaryCall<AsyncCall>::ResultCallback callback,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Internal::AsyncUnaryCall<PrepareFunc>;
+            using Call = Internal::AsyncUnaryCall<AsyncCall>;
             auto call = new Call();
             if (contextSetup)
-                contextSetup(call->context());
-            call->start(stub<typename Call::Stub>(), prepareFunc, request, _cqWorker->queue(), std::move(callback));
+                contextSetup(call->context);
+            call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(), std::move(callback));
         }
+
+        template<typename AsyncCall>
+        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING,
+            std::shared_ptr<Internal::AsyncServerStream<AsyncCall>>>
+        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
+            typename Internal::AsyncServerStream<AsyncCall>::ResponseCallback callback)
+        {
+            using Call = Internal::AsyncServerStream<AsyncCall>;
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
+                std::move(callback), [this](auto c) { _streamingCalls.erase(c); });
+            _streamingCalls.emplace(call);
+            return call;
+        }
+
+    private:
+        using CallPtr = std::shared_ptr<Internal::AsyncCallBase>;
+        std::unordered_set<CallPtr> _streamingCalls;
+
 
         // Queue Worker ------------------------------------------------------------------------------------------------
     private:

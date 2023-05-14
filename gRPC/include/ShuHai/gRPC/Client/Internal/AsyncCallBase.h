@@ -1,17 +1,17 @@
 #pragma once
 
+#include <grpcpp/client_context.h>
+
 namespace ShuHai::gRPC::Client::Internal
 {
     class AsyncCallBase
     {
     public:
         virtual ~AsyncCallBase() = default;
-        virtual void finish() = 0;
-        virtual void throws() = 0;
 
-        [[nodiscard]] grpc::ClientContext& context() { return _context; }
+        grpc::ClientContext context;
 
-    private:
-        grpc::ClientContext _context;
+    protected:
+        grpc::Status _status;
     };
 }

@@ -17,6 +17,20 @@ namespace ShuHai::gRPC
 
     using CqNotification = CompletionQueueNotification;
 
+    /**
+     * \brief CompletionQueueNotification that do nothing when complete.
+     */
+    class DummyCompletionQueueNotification : public CompletionQueueNotification
+    {
+    public:
+        void complete(bool ok) override { }
+    };
+
+    using DcqNotification = DummyCompletionQueueNotification;
+
+    /**
+     * \brief Generic function wrapper for CompletionQueueNotification.
+     */
     class GenericCompletionQueueNotification : public CompletionQueueNotification
     {
     public:

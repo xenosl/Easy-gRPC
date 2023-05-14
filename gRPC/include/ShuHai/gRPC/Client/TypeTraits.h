@@ -17,7 +17,10 @@ namespace ShuHai::gRPC::Client
         using ResponseReaderType = typename FunctionTraits<F>::ResultType::element_type;
         using RequestType = RemoveConstReferenceT<typename FunctionTraits<F>::template ArgumentT<1>>;
         using ResponseType = typename StreamingInterfaceTraits<ResponseReaderType>::ReadType;
-        
+
         static constexpr RpcType RpcType = StreamingInterfaceTraits<ResponseReaderType>::RpcType;
     };
+
+    template<typename F, RpcType T, typename Result>
+    using EnableIfRpcTypeMatch = std::enable_if_t<AsyncCallTraits<F>::RpcType == T, Result>;
 }

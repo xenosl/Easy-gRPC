@@ -6,14 +6,18 @@
 
 # gRPC-Quick
 
-## Design Goals
+## Features
 
-- **Automatic code generation**. gRPC uses protobuf with a custom plugin to generates codes for serialization and rpc
-  methods. It is tedious and error-prone to do it manually, the project provides convenient CMake functions to achieve
-  it automatically.
-- **Simplify asynchronous call & handling**. Simplify the use of asynchronous call/handling with arbitrary RPC types
-  with all types of RPC methods, i.e. unary call, client/server streaming, bidirectional streaming. (But streaming is
-  not implemented yet for now)
+- Automatic code generation for *.proto files.
+- Arbitrary RPC types support.
+- Asynchronous call with only one line of code.
+- Asynchronous callback support.
+
+## Installation
+
+## Install gRPC
+
+## Install gRPC-Quick
 
 ## Examples
 
@@ -165,11 +169,11 @@ client.call(&Greeter::Stub::PrepareAsyncSayHello, request,
         }
         catch (const ShuHai::gRPC::Client::AsyncCallError& e)
         {
-            printf("Call failed(%d): %s", e.status().error_code(), e.what());
+            printf("Handler failed(%d): %s", e.status().error_code(), e.what());
         }
         catch (const std::exception& e)
         {
-            printf("Call failed: %s", e.what());
+            printf("Handler failed: %s", e.what());
         }
     });
 ```
