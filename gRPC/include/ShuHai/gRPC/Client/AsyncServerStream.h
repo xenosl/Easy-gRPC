@@ -33,7 +33,7 @@ namespace ShuHai::gRPC::Client
             , _finishCallback(std::move(finishCallback))
         {
             _streamReader =
-                (stub->*asyncCall)(&context, request, queue, new GcqNotification([this](bool ok) { onReadyRead(ok); }));
+                (stub->*asyncCall)(&context, request, queue, new GcqTag([this](bool ok) { onReadyRead(ok); }));
         }
 
         ~AsyncServerStream() override
@@ -66,14 +66,13 @@ namespace ShuHai::gRPC::Client
     private:
         void read()
         {
-            _streamReader->Read(&_readingResponse, new GcqNotification([this](bool ok) { onRead(ok); }));
+            _streamReader->Read(&_readingResponse, new GcqTag([this](bool ok) { onRead(ok); }));
         }
 
         void finish(bool notify = true)
         {
-            auto notification = notify
-                ? static_cast<CqNotification*>(new GcqNotification([this](bool ok) { onFinished(ok); }))
-                : static_cast<CqNotification*>(new DcqNotification());
+            auto notification = notify ? static_cast<CqTag*>(new GcqTag([this](bool ok) { onFinished(ok); }))
+                                       : static_cast<CqTag*>(new DcqTag());
             _streamReader->Finish(&_status, notification);
         }
 

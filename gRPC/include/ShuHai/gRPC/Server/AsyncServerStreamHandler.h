@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
-#include "ShuHai/gRPC/CompletionQueueNotification.h"
+#include "ShuHai/gRPC/CompletionQueueTag.h"
 
 #include <atomic>
 #include <mutex>
@@ -106,7 +106,7 @@ namespace ShuHai::gRPC::Server
 
             _state = AsyncServerStreamState::Writing;
             _writer.Write(message, options,
-                new GcqNotification([this, isLast = options.is_last_message()](bool ok) { onWritten(ok, isLast); }));
+                new GcqTag([this, isLast = options.is_last_message()](bool ok) { onWritten(ok, isLast); }));
         }
 
         void finishImpl()
@@ -114,7 +114,7 @@ namespace ShuHai::gRPC::Server
             assert(_state != AsyncServerStreamState::Finish);
 
             _state = AsyncServerStreamState::Finish;
-            _writer.Finish(grpc::Status::OK, new GcqNotification([this](bool ok) { onFinished(ok); }));
+            _writer.Finish(grpc::Status::OK, new GcqTag([this](bool ok) { onFinished(ok); }));
         }
 
         void onWritten(bool ok, bool isLast)
@@ -197,8 +197,8 @@ namespace ShuHai::gRPC::Server
                 auto service = _owner->_service;
                 auto requestFunc = _owner->_requestFunc;
 
-                (service->*requestFunc)(&_context, &_request, &_rawWriter, cq, cq,
-                    new GcqNotification([&](bool ok) { onRequestResult(ok); }));
+                (service->*requestFunc)(
+                    &_context, &_request, &_rawWriter, cq, cq, new GcqTag([&](bool ok) { onRequestResult(ok); }));
 
                 _owner->_handlers.emplace(this);
             }

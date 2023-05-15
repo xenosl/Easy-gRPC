@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/CompletionQueueNotification.h"
+#include "ShuHai/gRPC/CompletionQueueTag.h"
 
 #include <grpcpp/completion_queue.h>
 
@@ -11,7 +11,7 @@ namespace ShuHai::gRPC
 {
     /**
      * \brief grpc::CompletionQueue wrapper for its polling and event handling.
-     *  Note: The class con only handle events tagged by CompletionQueueNotification.
+     *  Note: The class con only handle events tagged by CompletionQueueTag.
      */
     template<typename Queue>
     class CompletionQueueWorker
@@ -59,9 +59,9 @@ namespace ShuHai::gRPC
     private:
         static void notifyComplete(void* tag, bool ok)
         {
-            auto n = static_cast<CqNotification*>(tag);
-            n->complete(ok);
-            delete n;
+            auto t = static_cast<CqTag*>(tag);
+            t->finalizeResult(ok);
+            delete t;
         }
 
         std::unique_ptr<Queue> _queue;

@@ -3,7 +3,7 @@
 #include "ShuHai/gRPC/Client/AsyncCallBase.h"
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/Exceptions.h"
-#include "ShuHai/gRPC/CompletionQueueNotification.h"
+#include "ShuHai/gRPC/CompletionQueueTag.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
@@ -53,7 +53,7 @@ namespace ShuHai::gRPC::Client
         void invokeImpl(Stub* stub, AsyncCall asyncCall, const Request& request, grpc::CompletionQueue* queue)
         {
             _responseReader = (stub->*asyncCall)(&context, request, queue);
-            _responseReader->Finish(&_response, &_status, new GcqNotification([this](bool ok) { onFinished(ok); }));
+            _responseReader->Finish(&_response, &_status, new GcqTag([this](bool ok) { onFinished(ok); }));
         }
 
         void finish()

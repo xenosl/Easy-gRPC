@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
-#include "ShuHai/gRPC/CompletionQueueNotification.h"
+#include "ShuHai/gRPC/CompletionQueueTag.h"
 
 #include <ShuHai/FunctionTraits.h>
 
@@ -62,7 +62,7 @@ namespace ShuHai::gRPC::Server
                 auto requestFunc = _owner->_requestFunc;
 
                 (service->*requestFunc)(
-                    &_context, &_request, &_responseWriter, cq, cq, new GcqNotification([&](bool ok) { process(ok); }));
+                    &_context, &_request, &_responseWriter, cq, cq, new GcqTag([&](bool ok) { process(ok); }));
             }
 
         private:
@@ -75,7 +75,7 @@ namespace ShuHai::gRPC::Server
 
                 Response response;
                 _owner->_processFunc(_context, _request, response);
-                _responseWriter.Finish(response, grpc::Status::OK, new GcqNotification([&](bool ok) { finish(ok); }));
+                _responseWriter.Finish(response, grpc::Status::OK, new GcqTag([&](bool ok) { finish(ok); }));
             }
 
             void finish(bool ok) { (_owner->*_onFinish)(this, ok); }
