@@ -74,20 +74,33 @@ namespace ShuHai::gRPC::Client
         }
 
         template<typename AsyncCall>
-        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING,
-            std::shared_ptr<AsyncServerStream<AsyncCall>>>
-        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
+        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStream<AsyncCall>>> call(
+            AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
             typename AsyncServerStream<AsyncCall>::ResponseCallback callback)
         {
             using Call = AsyncServerStream<AsyncCall>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
-                std::move(callback), [this](auto c) { _streamingCalls.erase(c); });
-            _streamingCalls.emplace(call);
+                std::move(callback), [this](auto c) { removeStreamingCall(c); });
+            addStreamingCall(call);
             return call;
         }
 
     private:
         using CallPtr = std::shared_ptr<AsyncCallBase>;
+
+        void addStreamingCall(CallPtr call)
+        {
+            std::lock_guard l(_streamingCallsMutex);
+            _streamingCalls.emplace(call);
+        }
+
+        void removeStreamingCall(CallPtr call)
+        {
+            std::lock_guard l(_streamingCallsMutex);
+            _streamingCalls.erase(call);
+        }
+
+        std::mutex _streamingCallsMutex;
         std::unordered_set<CallPtr> _streamingCalls;
 
 
