@@ -1,7 +1,7 @@
 #pragma once
 
+#include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
-#include "ShuHai/gRPC/Server/Internal/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/CompletionQueueNotification.h"
 
 #include <ShuHai/FunctionTraits.h>
@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace ShuHai::gRPC::Server::Internal
+namespace ShuHai::gRPC::Server
 {
     template<typename TRequestFunc>
     class AsyncUnaryCallHandler : public AsyncCallHandler<TRequestFunc>

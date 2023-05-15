@@ -1,8 +1,8 @@
 #pragma once
 
+#include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
+#include "ShuHai/gRPC/Client/AsyncServerStream.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
-#include "ShuHai/gRPC/Client/Internal/AsyncUnaryCall.h"
-#include "ShuHai/gRPC/Client/Internal/AsyncServerStream.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -46,7 +46,7 @@ namespace ShuHai::gRPC::Client
         call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Internal::AsyncUnaryCall<AsyncCall>;
+            using Call = AsyncUnaryCall<AsyncCall>;
             auto call = new Call();
             if (contextSetup)
                 contextSetup(call->context);
@@ -63,10 +63,10 @@ namespace ShuHai::gRPC::Client
         template<typename AsyncCall>
         EnableIfRpcTypeMatch<AsyncCall, RpcType::NORMAL_RPC, void> call(AsyncCall asyncCall,
             const typename AsyncCallTraits<AsyncCall>::RequestType& request,
-            typename Internal::AsyncUnaryCall<AsyncCall>::ResultCallback callback,
+            typename AsyncUnaryCall<AsyncCall>::ResultCallback callback,
             const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
         {
-            using Call = Internal::AsyncUnaryCall<AsyncCall>;
+            using Call = AsyncUnaryCall<AsyncCall>;
             auto call = new Call();
             if (contextSetup)
                 contextSetup(call->context);
@@ -75,11 +75,11 @@ namespace ShuHai::gRPC::Client
 
         template<typename AsyncCall>
         EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING,
-            std::shared_ptr<Internal::AsyncServerStream<AsyncCall>>>
+            std::shared_ptr<AsyncServerStream<AsyncCall>>>
         call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
-            typename Internal::AsyncServerStream<AsyncCall>::ResponseCallback callback)
+            typename AsyncServerStream<AsyncCall>::ResponseCallback callback)
         {
-            using Call = Internal::AsyncServerStream<AsyncCall>;
+            using Call = AsyncServerStream<AsyncCall>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
                 std::move(callback), [this](auto c) { _streamingCalls.erase(c); });
             _streamingCalls.emplace(call);
@@ -87,7 +87,7 @@ namespace ShuHai::gRPC::Client
         }
 
     private:
-        using CallPtr = std::shared_ptr<Internal::AsyncCallBase>;
+        using CallPtr = std::shared_ptr<AsyncCallBase>;
         std::unordered_set<CallPtr> _streamingCalls;
 
 

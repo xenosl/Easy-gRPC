@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Client/Internal/AsyncCallBase.h"
+#include "ShuHai/gRPC/Client/AsyncCallBase.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
@@ -8,7 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace ShuHai::gRPC::Client::Internal
+namespace ShuHai::gRPC::Client
 {
     template<typename TAsyncCall>
     class AsyncServerStream

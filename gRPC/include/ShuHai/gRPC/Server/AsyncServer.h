@@ -156,7 +156,7 @@ namespace ShuHai::gRPC::Server
          */
         template<typename RequestFunc>
         EnableIfRpcTypeMatch<RequestFunc, RpcType::NORMAL_RPC, void> registerCallHandler(RequestFunc requestFunc,
-            typename Internal::AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+            typename AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
             auto& queue = _queues.at(queueIndex);
@@ -165,7 +165,7 @@ namespace ShuHai::gRPC::Server
 
         template<typename RequestFunc>
         EnableIfRpcTypeMatch<RequestFunc, RpcType::SERVER_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
-            typename Internal::AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+            typename AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
             auto& queue = _queues.at(queueIndex);

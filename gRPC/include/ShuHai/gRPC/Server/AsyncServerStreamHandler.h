@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/Internal/AsyncCallHandlerBase.h"
+#include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/CompletionQueueNotification.h"
 
 #include <atomic>
@@ -9,7 +9,7 @@
 #include <queue>
 #include <optional>
 
-namespace ShuHai::gRPC::Server::Internal
+namespace ShuHai::gRPC::Server
 {
     template<typename TRequestFunc>
     class AsyncServerStreamHandler;

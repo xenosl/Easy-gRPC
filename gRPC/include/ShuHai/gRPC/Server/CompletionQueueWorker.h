@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/Internal/AsyncUnaryCallHandler.h"
-#include "ShuHai/gRPC/Server/Internal/AsyncServerStreamHandler.h"
+#include "ShuHai/gRPC/Server/AsyncUnaryCallHandler.h"
+#include "ShuHai/gRPC/Server/AsyncServerStreamHandler.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
@@ -37,27 +37,27 @@ namespace ShuHai::gRPC::Server
         template<typename RequestFunc>
         EnableIfRpcTypeMatch<RequestFunc, RpcType::NORMAL_RPC, void> registerCallHandler(RequestFunc requestFunc,
             typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            typename Internal::AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc)
+            typename AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc)
         {
             static_assert(std::is_member_function_pointer_v<RequestFunc>);
             auto handler =
-                new Internal::AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
+                new AsyncUnaryCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
             _callHandlers.emplace(handler);
         }
 
         template<typename RequestFunc>
         EnableIfRpcTypeMatch<RequestFunc, RpcType::SERVER_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
             typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            typename Internal::AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc)
+            typename AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc)
         {
             static_assert(std::is_member_function_pointer_v<RequestFunc>);
-            auto handler = new Internal::AsyncServerStreamHandler<RequestFunc>(
-                queue(), service, requestFunc, std::move(processFunc));
+            auto handler =
+                new AsyncServerStreamHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
             _callHandlers.emplace(handler);
         }
 
     private:
-        using CallHandlerSet = std::unordered_set<Internal::AsyncCallHandlerBase*>;
+        using CallHandlerSet = std::unordered_set<AsyncCallHandlerBase*>;
 
         void deleteAllCallHandlers()
         {

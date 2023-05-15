@@ -2,7 +2,7 @@
 
 #include <grpcpp/client_context.h>
 
-namespace ShuHai::gRPC::Client::Internal
+namespace ShuHai::gRPC::Client
 {
     class AsyncCallBase
     {

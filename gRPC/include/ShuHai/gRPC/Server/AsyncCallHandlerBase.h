@@ -1,8 +1,10 @@
 #pragma once
 
+#include "ShuHai/gRPC/Server/TypeTraits.h"
+
 #include <grpcpp/grpcpp.h>
 
-namespace ShuHai::gRPC::Server::Internal
+namespace ShuHai::gRPC::Server
 {
     class AsyncCallHandlerBase
     {

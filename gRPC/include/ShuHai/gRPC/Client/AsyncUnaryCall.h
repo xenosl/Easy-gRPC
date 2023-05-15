@@ -1,8 +1,8 @@
 #pragma once
 
+#include "ShuHai/gRPC/Client/AsyncCallBase.h"
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/Exceptions.h"
-#include "ShuHai/gRPC/Client/Internal/AsyncCallBase.h"
 #include "ShuHai/gRPC/CompletionQueueNotification.h"
 
 #include <grpcpp/grpcpp.h>
@@ -11,7 +11,7 @@
 #include <future>
 #include <functional>
 
-namespace ShuHai::gRPC::Client::Internal
+namespace ShuHai::gRPC::Client
 {
     template<typename TAsyncCall>
     class AsyncUnaryCall : public AsyncCallBase
