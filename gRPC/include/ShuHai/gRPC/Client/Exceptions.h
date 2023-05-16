@@ -4,7 +4,6 @@
 
 #include <stdexcept>
 
-
 namespace ShuHai::gRPC::Client
 {
     /**
@@ -24,7 +23,7 @@ namespace ShuHai::gRPC::Client
     };
 
     /**
-     * \brief Throws when a call newHandler failed to complete.
+     * \brief Throws when a completion queue event failed to complete.
      */
     class AsyncQueueError : public std::runtime_error
     {

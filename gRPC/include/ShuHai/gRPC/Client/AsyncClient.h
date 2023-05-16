@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
-#include "ShuHai/gRPC/Client/AsyncServerStream.h"
+#include "ShuHai/gRPC/Client/AsyncServerStreamCall.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <grpcpp/grpcpp.h>
@@ -74,34 +74,34 @@ namespace ShuHai::gRPC::Client
         }
 
         template<typename AsyncCall>
-        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStream<AsyncCall>>> call(
-            AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
-            typename AsyncServerStream<AsyncCall>::ResponseCallback callback)
+        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStreamCall<AsyncCall>>>
+        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
+            std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
-            using Call = AsyncServerStream<AsyncCall>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
-                std::move(callback), [this](auto c) { removeStreamingCall(c); });
-            addStreamingCall(call);
+            using Call = AsyncServerStreamCall<AsyncCall>;
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), request,
+                _cqWorker->queue(), nullptr, [this](auto c) { removeStreamingCall(c); });
+            addStreamingCall(static_cast<StreamCallPtr>(call));
             return call;
         }
 
     private:
-        using CallPtr = std::shared_ptr<AsyncCallBase>;
+        using StreamCallPtr = std::shared_ptr<AsyncStreamCall>;
 
-        void addStreamingCall(CallPtr call)
+        void addStreamingCall(StreamCallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.emplace(call);
         }
 
-        void removeStreamingCall(CallPtr call)
+        void removeStreamingCall(StreamCallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.erase(call);
         }
 
         std::mutex _streamingCallsMutex;
-        std::unordered_set<CallPtr> _streamingCalls;
+        std::unordered_set<StreamCallPtr> _streamingCalls;
 
 
         // Queue Worker ------------------------------------------------------------------------------------------------

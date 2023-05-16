@@ -18,7 +18,7 @@ namespace ShuHai::gRPC
     using CqTag = CompletionQueueTag;
 
     /**
-     * \brief CompletionQueueTag that do nothing when finalizeResult.
+     * \brief CompletionQueueTag that do nothing on finalize result.
      */
     class DummyCompletionQueueTag : public CompletionQueueTag
     {
@@ -34,18 +34,18 @@ namespace ShuHai::gRPC
     class GenericCompletionQueueTag : public CompletionQueueTag
     {
     public:
-        explicit GenericCompletionQueueTag(std::function<void(bool)> complete)
-            : _complete(std::move(complete))
+        explicit GenericCompletionQueueTag(std::function<void(bool)> finalizer)
+            : _finalizer(std::move(finalizer))
         { }
 
         void finalizeResult(bool ok) override
         {
-            if (_complete)
-                _complete(ok);
+            if (_finalizer)
+                _finalizer(ok);
         }
 
     private:
-        std::function<void(bool)> _complete;
+        std::function<void(bool)> _finalizer;
     };
 
     using GcqTag = GenericCompletionQueueTag;

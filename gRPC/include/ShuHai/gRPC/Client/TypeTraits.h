@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ShuHai/gRPC/TypeTraits.h"
-#include "ShuHai/TypeTraits.h"
 #include "ShuHai/FunctionTraits.h"
+#include "ShuHai/TypeTraits.h"
 
 namespace ShuHai::gRPC::Client
 {
