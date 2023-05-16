@@ -136,10 +136,8 @@ namespace ShuHai::gRPC::Client
 
         AsyncServerStreamCall(Stub* stub, AsyncCall asyncCall, std::unique_ptr<grpc::ClientContext> context,
             const Request& request, grpc::CompletionQueue* queue,
-            std::function<void(std::future<ResponseIterator*>&&)> onResponseIteratorReady,
             std::function<void(std::shared_ptr<AsyncServerStreamCall>)> onFinished)
             : _context(std::move(context))
-            , _onResponseIteratorReady(std::move(onResponseIteratorReady))
             , _onFinished(std::move(onFinished))
         {
             if (!_context)
@@ -190,9 +188,6 @@ namespace ShuHai::gRPC::Client
             {
                 _responseIteratorPromise.set_exception(std::current_exception());
             }
-
-            if (_onResponseIteratorReady)
-                _onResponseIteratorReady(_responseIteratorPromise.get_future());
         }
 
         void onFinished() { _onFinished(this->shared_from_this()); }
@@ -202,7 +197,6 @@ namespace ShuHai::gRPC::Client
 
         ResponseIteratorPtr _responseIterator;
         std::promise<ResponseIterator*> _responseIteratorPromise;
-        std::function<void(std::future<ResponseIterator*>&&)> _onResponseIteratorReady;
 
         std::function<void(std::shared_ptr<AsyncServerStreamCall>)> _onFinished;
     };

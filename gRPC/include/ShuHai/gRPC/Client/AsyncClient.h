@@ -80,7 +80,7 @@ namespace ShuHai::gRPC::Client
         {
             using Call = AsyncServerStreamCall<AsyncCall>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), request,
-                _cqWorker->queue(), nullptr, [this](auto c) { removeStreamingCall(c); });
+                _cqWorker->queue(), [this](auto c) { removeStreamingCall(c); });
             addStreamingCall(static_cast<StreamCallPtr>(call));
             return call;
         }

@@ -69,7 +69,7 @@ void unaryCall(AsyncClient& client)
     HelloRequest request;
     request.set_name("user");
 
-    // Call and get response by callback.
+    // Call and get response by callback
     client.call(
         &Greeter::Stub::AsyncSayHello, request, [](std::future<HelloReply>&& f) { handleResult(f, "Unary-Callback"); });
 
@@ -82,6 +82,19 @@ void serverStream(AsyncClient& client)
 {
     HelloRequest request;
     request.set_name("user");
+
+    // Call and get response by callback
+    auto callForCallback = client.call(&Greeter::Stub::AsyncSayHelloServerStream, request);
+    auto it1 = callForCallback->responseIterator().get();
+    std::function<void(decltype(it1))> nextMoved;
+    nextMoved = [&](auto it)
+    {
+        const auto& response = it->current();
+        console().writeLine("[%s] SayHello reply: %s", "ServerStream-Callback", response.message().c_str());
+        if (!it->finished())
+            it->moveNext(nextMoved);
+    };
+    it1->moveNext(nextMoved);
 
     // Call and wait for the responses
     auto callForWait = client.call(&Greeter::Stub::AsyncSayHelloServerStream, request);
