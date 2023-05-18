@@ -17,7 +17,7 @@ namespace ShuHai::gRPC::Client
     class AsyncServerStreamCall;
 
     template<typename TAsyncCall>
-    class AsyncResponseIterator
+    class AsyncResponseStreamReader
     {
     public:
         using AsyncCall = TAsyncCall;
@@ -26,7 +26,7 @@ namespace ShuHai::gRPC::Client
 
         static_assert(std::is_same_v<grpc::ClientAsyncReader<Response>, ResponseReader>);
 
-        void moveNext(std::function<void(AsyncResponseIterator*)> onMoved)
+        void moveNext(std::function<void(AsyncResponseStreamReader*)> onMoved)
         {
             ensureMoveNext();
             _onMovedNext = std::move(onMoved);
@@ -49,7 +49,7 @@ namespace ShuHai::gRPC::Client
     private:
         friend class AsyncServerStreamCall<AsyncCall>;
 
-        AsyncResponseIterator(
+        AsyncResponseStreamReader(
             std::unique_ptr<ResponseReader> reader, grpc::Status& status, std::function<void()> onFinished)
             : _reader(std::move(reader))
             , _status(status)
@@ -103,7 +103,7 @@ namespace ShuHai::gRPC::Client
 
         std::promise<bool> _currentReadyPromise;
         Response _current;
-        std::function<void(AsyncResponseIterator*)> _onMovedNext;
+        std::function<void(AsyncResponseStreamReader*)> _onMovedNext;
         std::atomic<AsyncReaderState> _state { AsyncReaderState::ReadyRead };
 
         grpc::Status& _status;
@@ -123,7 +123,7 @@ namespace ShuHai::gRPC::Client
         using Stub = typename AsyncCallTraits<TAsyncCall>::StubType;
         using Request = typename AsyncCallTraits<TAsyncCall>::RequestType;
         using Response = typename AsyncCallTraits<TAsyncCall>::ResponseType;
-        using ResponseIterator = AsyncResponseIterator<AsyncCall>;
+        using ResponseStream = AsyncResponseStreamReader<AsyncCall>;
 
         static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
         static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
@@ -139,27 +139,27 @@ namespace ShuHai::gRPC::Client
 
             auto reader = (stub->*asyncCall)(
                 _context.get(), request, queue, new GenericCompletionQueueTag([this](bool ok) { onReadyRead(ok); }));
-            _responseIterator =
-                ResponseIteratorPtr(new ResponseIterator(std::move(reader), _status, [this] { this->onFinished(); }));
+            _responseStream =
+                ResponseStreamPtr(new ResponseStream(std::move(reader), _status, [this] { this->onFinished(); }));
         }
 
         ~AsyncServerStreamCall() override = default;
 
-        std::future<ResponseIterator*> responseIterator() { return _responseIteratorPromise.get_future(); }
+        std::future<ResponseStream*> responseStream() { return _responseStreamPromise.get_future(); }
 
         grpc::ClientContext& context() { return *_context; }
 
         [[nodiscard]] const grpc::Status& status() const { return _status; }
 
-        [[nodiscard]] bool finished() const { return _responseIterator->state() == AsyncReaderState::Finished; }
+        [[nodiscard]] bool finished() const { return _responseStream->state() == AsyncReaderState::Finished; }
 
     private:
-        struct ResponseIteratorDeleter
+        struct ResponseStreamDeleter
         {
-            void operator()(ResponseIterator* p) const { delete p; }
+            void operator()(ResponseStream* p) const { delete p; }
         };
 
-        using ResponseIteratorPtr = std::unique_ptr<ResponseIterator, ResponseIteratorDeleter>;
+        using ResponseStreamPtr = std::unique_ptr<ResponseStream, ResponseStreamDeleter>;
 
         void onReadyRead(bool ok)
         {
@@ -167,17 +167,17 @@ namespace ShuHai::gRPC::Client
             {
                 if (!ok)
                 {
-                    _responseIterator->finish();
+                    _responseStream->finish();
                     throw RpcInvocationError(RpcType::SERVER_STREAMING);
                 }
 
-                _responseIterator->prepare();
+                _responseStream->prepare();
 
-                _responseIteratorPromise.set_value(_responseIterator.get());
+                _responseStreamPromise.set_value(_responseStream.get());
             }
             catch (...)
             {
-                _responseIteratorPromise.set_exception(std::current_exception());
+                _responseStreamPromise.set_exception(std::current_exception());
             }
         }
 
@@ -186,8 +186,8 @@ namespace ShuHai::gRPC::Client
         std::unique_ptr<grpc::ClientContext> _context;
         grpc::Status _status;
 
-        ResponseIteratorPtr _responseIterator;
-        std::promise<ResponseIterator*> _responseIteratorPromise;
+        ResponseStreamPtr _responseStream;
+        std::promise<ResponseStream*> _responseStreamPromise;
 
         std::function<void(std::shared_ptr<AsyncServerStreamCall>)> _onFinished;
     };

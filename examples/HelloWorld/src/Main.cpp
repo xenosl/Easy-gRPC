@@ -85,23 +85,23 @@ void serverStream(AsyncClient& client)
 
     // Call and get response by callback
     auto callForCallback = client.call(&Greeter::Stub::AsyncSayHelloServerStream, request);
-    auto it1 = callForCallback->responseIterator().get();
-    std::function<void(decltype(it1))> nextMoved;
-    nextMoved = [&](auto it)
+    auto stream1 = callForCallback->responseStream().get();
+    std::function<void(decltype(stream1))> nextMoved;
+    nextMoved = [&](auto s)
     {
-        const auto& response = it->current();
+        const auto& response = s->current();
         console().writeLine("[%s] SayHello reply: %s", "ServerStream-Callback", response.message().c_str());
-        if (!it->finished())
-            it->moveNext(nextMoved);
+        if (!s->finished())
+            s->moveNext(nextMoved);
     };
-    it1->moveNext(nextMoved);
+    stream1->moveNext(nextMoved);
 
     // Call and wait for the responses
     auto callForWait = client.call(&Greeter::Stub::AsyncSayHelloServerStream, request);
-    auto it2 = callForWait->responseIterator().get();
-    while (it2->moveNext().get())
+    auto stream2 = callForWait->responseStream().get();
+    while (stream2->moveNext().get())
     {
-        const auto& response = it2->current();
+        const auto& response = stream2->current();
         console().writeLine("[%s] SayHello reply: %s", "ServerStream-Wait", response.message().c_str());
     }
 }
