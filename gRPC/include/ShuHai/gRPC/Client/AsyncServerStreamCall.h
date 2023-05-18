@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Client/AsyncStreamCall.h"
+#include "ShuHai/gRPC/Client/AsyncCallBase.h"
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/RpcInvocationError.h"
 #include "ShuHai/gRPC/CompletionQueueTag.h"
@@ -13,16 +13,16 @@
 
 namespace ShuHai::gRPC::Client
 {
-    template<typename TAsyncCall>
+    template<typename TCallFunc>
     class AsyncServerStreamCall;
 
-    template<typename TAsyncCall>
+    template<typename TCallFunc>
     class AsyncResponseStreamReader
     {
     public:
-        using AsyncCall = TAsyncCall;
-        using Response = typename AsyncCallTraits<TAsyncCall>::ResponseType;
-        using ResponseReader = typename AsyncCallTraits<TAsyncCall>::StreamingInterfaceType;
+        using CallFunc = TCallFunc;
+        using Response = typename AsyncCallTraits<TCallFunc>::ResponseType;
+        using ResponseReader = typename AsyncCallTraits<TCallFunc>::StreamingInterfaceType;
 
         static_assert(std::is_same_v<grpc::ClientAsyncReader<Response>, ResponseReader>);
 
@@ -47,7 +47,7 @@ namespace ShuHai::gRPC::Client
         [[nodiscard]] bool finished() const { return _state == AsyncReaderState::Finished; }
 
     private:
-        friend class AsyncServerStreamCall<AsyncCall>;
+        friend class AsyncServerStreamCall<CallFunc>;
 
         AsyncResponseStreamReader(
             std::unique_ptr<ResponseReader> reader, grpc::Status& status, std::function<void()> onFinished)
@@ -113,43 +113,37 @@ namespace ShuHai::gRPC::Client
         std::function<void()> _onFinished;
     };
 
-    template<typename TAsyncCall>
+    template<typename TCallFunc>
     class AsyncServerStreamCall
-        : public AsyncStreamCall
-        , public std::enable_shared_from_this<AsyncServerStreamCall<TAsyncCall>>
+        : public AsyncCall<TCallFunc>
+        , public std::enable_shared_from_this<AsyncServerStreamCall<TCallFunc>>
     {
     public:
-        using AsyncCall = TAsyncCall;
-        using Stub = typename AsyncCallTraits<TAsyncCall>::StubType;
-        using Request = typename AsyncCallTraits<TAsyncCall>::RequestType;
-        using Response = typename AsyncCallTraits<TAsyncCall>::ResponseType;
-        using ResponseStream = AsyncResponseStreamReader<AsyncCall>;
+        using Base = AsyncCall<TCallFunc>;
+        using CallFunc = typename Base::CallFunc;
+        using Stub = typename Base::Stub;
+        using Request = typename Base::Request;
+        using Response = typename Base::Response;
+        using ResponseStream = AsyncResponseStreamReader<CallFunc>;
 
         static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
         static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
 
-        AsyncServerStreamCall(Stub* stub, AsyncCall asyncCall, std::unique_ptr<grpc::ClientContext> context,
+        AsyncServerStreamCall(Stub* stub, CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context,
             const Request& request, grpc::CompletionQueue* queue,
             std::function<void(std::shared_ptr<AsyncServerStreamCall>)> onFinished)
-            : _context(std::move(context))
+            : Base(std::move(context))
             , _onFinished(std::move(onFinished))
         {
-            if (!_context)
-                _context = std::make_unique<grpc::ClientContext>();
-
-            auto reader = (stub->*asyncCall)(
-                _context.get(), request, queue, new GenericCompletionQueueTag([this](bool ok) { onReadyRead(ok); }));
+            auto reader = (stub->*asyncCall)(this->_context.get(), request, queue,
+                new GenericCompletionQueueTag([this](bool ok) { onReadyRead(ok); }));
             _responseStream =
-                ResponseStreamPtr(new ResponseStream(std::move(reader), _status, [this] { this->onFinished(); }));
+                ResponseStreamPtr(new ResponseStream(std::move(reader), this->_status, [this] { this->onFinished(); }));
         }
 
         ~AsyncServerStreamCall() override = default;
 
         std::future<ResponseStream*> responseStream() { return _responseStreamPromise.get_future(); }
-
-        grpc::ClientContext& context() { return *_context; }
-
-        [[nodiscard]] const grpc::Status& status() const { return _status; }
 
         [[nodiscard]] bool finished() const { return _responseStream->state() == AsyncReaderState::Finished; }
 
@@ -182,9 +176,6 @@ namespace ShuHai::gRPC::Client
         }
 
         void onFinished() { _onFinished(this->shared_from_this()); }
-
-        std::unique_ptr<grpc::ClientContext> _context;
-        grpc::Status _status;
 
         ResponseStreamPtr _responseStream;
         std::promise<ResponseStream*> _responseStreamPromise;

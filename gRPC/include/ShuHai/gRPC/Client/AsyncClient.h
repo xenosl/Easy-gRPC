@@ -2,6 +2,7 @@
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
 #include "ShuHai/gRPC/Client/AsyncServerStreamCall.h"
+#include "ShuHai/gRPC/Client/AsyncClientStreamCall.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <grpcpp/grpcpp.h>
@@ -40,16 +41,14 @@ namespace ShuHai::gRPC::Client
          * \param request The rpc parameter.
          * \return A std::future<ResponseType> object used to obtain the rpc result.
          */
-        template<typename AsyncCall>
-        EnableIfRpcTypeMatch<AsyncCall, RpcType::NORMAL_RPC,
-            std::future<typename AsyncCallTraits<AsyncCall>::ResponseType>>
-        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
-            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC,
+            std::future<typename AsyncCallTraits<CallFunc>::ResponseType>>
+        call(CallFunc asyncCall, const typename AsyncCallTraits<CallFunc>::RequestType& request,
+            std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
-            using Call = AsyncUnaryCall<AsyncCall>;
-            auto call = new Call();
-            if (contextSetup)
-                contextSetup(call->context);
+            using Call = AsyncUnaryCall<CallFunc>;
+            auto call = new Call(std::move(context));
             return call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue());
         }
 
@@ -60,48 +59,46 @@ namespace ShuHai::gRPC::Client
          * \param request The rpc parameter.
          * \param callback The callback function for rpc result notification.
          */
-        template<typename AsyncCall>
-        EnableIfRpcTypeMatch<AsyncCall, RpcType::NORMAL_RPC, void> call(AsyncCall asyncCall,
-            const typename AsyncCallTraits<AsyncCall>::RequestType& request,
-            typename AsyncUnaryCall<AsyncCall>::ResultCallback callback,
-            const std::function<void(grpc::ClientContext&)>& contextSetup = nullptr)
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, void> call(CallFunc asyncCall,
+            const typename AsyncCallTraits<CallFunc>::RequestType& request,
+            typename AsyncUnaryCall<CallFunc>::ResultCallback callback,
+            std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
-            using Call = AsyncUnaryCall<AsyncCall>;
-            auto call = new Call();
-            if (contextSetup)
-                contextSetup(call->context);
+            using Call = AsyncUnaryCall<CallFunc>;
+            auto call = new Call(std::move(context));
             call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(), std::move(callback));
         }
 
-        template<typename AsyncCall>
-        EnableIfRpcTypeMatch<AsyncCall, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStreamCall<AsyncCall>>>
-        call(AsyncCall asyncCall, const typename AsyncCallTraits<AsyncCall>::RequestType& request,
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStreamCall<CallFunc>>>
+        call(CallFunc asyncCall, const typename AsyncCallTraits<CallFunc>::RequestType& request,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
-            using Call = AsyncServerStreamCall<AsyncCall>;
+            using Call = AsyncServerStreamCall<CallFunc>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), request,
                 _cqWorker->queue(), [this](auto c) { removeStreamingCall(c); });
-            addStreamingCall(static_cast<StreamCallPtr>(call));
+            addStreamingCall(static_cast<AsyncCallPtr>(call));
             return call;
         }
 
     private:
-        using StreamCallPtr = std::shared_ptr<AsyncStreamCall>;
+        using AsyncCallPtr = std::shared_ptr<AsyncCallBase>;
 
-        void addStreamingCall(StreamCallPtr call)
+        void addStreamingCall(AsyncCallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.emplace(call);
         }
 
-        void removeStreamingCall(StreamCallPtr call)
+        void removeStreamingCall(AsyncCallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.erase(call);
         }
 
         std::mutex _streamingCallsMutex;
-        std::unordered_set<StreamCallPtr> _streamingCalls;
+        std::unordered_set<AsyncCallPtr> _streamingCalls;
 
 
         // Queue Worker ------------------------------------------------------------------------------------------------
