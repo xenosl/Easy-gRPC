@@ -2,7 +2,9 @@
 
 #include "ShuHai/gRPC/TypeTraits.h"
 #include "ShuHai/TypeTraits.h"
-#include "ShuHai/FunctionTraits.h"
+
+#include <grpcpp/completion_queue.h>
+#include <grpcpp/server_context.h>
 
 namespace ShuHai::gRPC::Server
 {

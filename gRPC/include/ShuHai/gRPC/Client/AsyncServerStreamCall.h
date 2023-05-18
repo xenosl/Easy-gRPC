@@ -22,7 +22,7 @@ namespace ShuHai::gRPC::Client
     public:
         using AsyncCall = TAsyncCall;
         using Response = typename AsyncCallTraits<TAsyncCall>::ResponseType;
-        using ResponseReader = typename AsyncCallTraits<TAsyncCall>::ResponseReaderType;
+        using ResponseReader = typename AsyncCallTraits<TAsyncCall>::StreamingInterfaceType;
 
         static_assert(std::is_same_v<grpc::ClientAsyncReader<Response>, ResponseReader>);
 

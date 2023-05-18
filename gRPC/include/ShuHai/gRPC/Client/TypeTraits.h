@@ -1,8 +1,10 @@
 #pragma once
 
 #include "ShuHai/gRPC/TypeTraits.h"
-#include "ShuHai/FunctionTraits.h"
 #include "ShuHai/TypeTraits.h"
+
+#include <grpcpp/completion_queue.h>
+#include <grpcpp/client_context.h>
 
 namespace ShuHai::gRPC::Client
 {
@@ -11,14 +13,54 @@ namespace ShuHai::gRPC::Client
      * \tparam F Type of function Stub::PrepareAsync<RpcName> or Stub::Async<Rpc> in generated code.
      */
     template<typename F>
-    struct AsyncCallTraits
-    {
-        using StubType = typename FunctionTraits<F>::ClassType;
-        using ResponseReaderType = typename FunctionTraits<F>::ResultType::element_type;
-        using RequestType = RemoveConstReferenceT<typename FunctionTraits<F>::template ArgumentT<1>>;
-        using ResponseType = typename StreamingInterfaceTraits<ResponseReaderType>::ReadType;
+    struct AsyncCallTraits;
 
-        static constexpr RpcType RpcType = StreamingInterfaceTraits<ResponseReaderType>::RpcType;
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncResponseReader<Response>> (Stub::*)(
+        grpc::ClientContext*, const Request&, grpc::CompletionQueue*)>
+    {
+        using StubType = Stub;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ClientAsyncResponseReader<Response>;
+
+        static constexpr RpcType RpcType = RpcType::NORMAL_RPC;
+    };
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncReader<Response>> (Stub::*)(
+        grpc::ClientContext*, const Request&, grpc::CompletionQueue*, void*)>
+    {
+        using StubType = Stub;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ClientAsyncReader<Response>;
+
+        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
+    };
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncWriter<Request>> (Stub::*)(
+        grpc::ClientContext*, Response*, grpc::CompletionQueue*, void*)>
+    {
+        using StubType = Stub;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ClientAsyncWriter<Response>;
+
+        static constexpr RpcType RpcType = RpcType::CLIENT_STREAMING;
+    };
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncReaderWriter<Request, Response>> (Stub::*)(
+        grpc::ClientContext*, grpc::CompletionQueue*, void*)>
+    {
+        using StubType = Stub;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ClientAsyncReaderWriter<Request, Response>;
+
+        static constexpr RpcType RpcType = RpcType::BIDI_STREAMING;
     };
 
     template<typename F, RpcType T, typename Result>

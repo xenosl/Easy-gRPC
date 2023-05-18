@@ -22,7 +22,7 @@ namespace ShuHai::gRPC::Client
         using Request = typename AsyncCallTraits<TAsyncCall>::RequestType;
         using Response = typename AsyncCallTraits<TAsyncCall>::ResponseType;
         using ResultCallback = std::function<void(std::future<Response>&&)>;
-        using ResponseReader = typename AsyncCallTraits<TAsyncCall>::ResponseReaderType;
+        using ResponseReader = typename AsyncCallTraits<TAsyncCall>::StreamingInterfaceType;
 
         static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
         static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
