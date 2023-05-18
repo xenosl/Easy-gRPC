@@ -171,5 +171,15 @@ namespace ShuHai::gRPC::Server
             auto& queue = _queues.at(queueIndex);
             queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
         }
+
+        template<typename RequestFunc>
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerHandler(RequestFunc requestFunc,
+            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
+            typename AsyncRequestTraits<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+        {
+            using Service = typename AsyncClientStreamCallHandler<RequestFunc>::ServiceType;
+            auto& queue = _queues.at(queueIndex);
+            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+        }
     };
 }

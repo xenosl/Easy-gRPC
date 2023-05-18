@@ -5,16 +5,4 @@
 namespace ShuHai::gRPC
 {
     using RpcType = grpc::internal::RpcMethod::RpcType;
-
-    //enum class RpcType
-    //
-    //   SyncUnaryCall,
-    //   SyncClientStream,
-    //   SyncServerStream,
-    //   SyncBidirectionalStream,
-    //   AsyncUnaryCall,
-    //   AsyncClientStream,
-    //   AsyncServerStream,
-    //   AsyncBidirectionalStream,
-    //;
 }

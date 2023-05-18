@@ -24,7 +24,7 @@ namespace ShuHai::gRPC::Server
         using Service = typename Base::Service;
         using Request = typename Base::Request;
         using Response = typename Base::Response;
-        using ResponseWriter = typename Base::ResponseWriter;
+        using ResponseWriter = typename Base::StreamingInterface;
         using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, Response&)>;
 
         explicit AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,

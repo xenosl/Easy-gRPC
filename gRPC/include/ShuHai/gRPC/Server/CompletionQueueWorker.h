@@ -2,6 +2,7 @@
 
 #include "ShuHai/gRPC/Server/AsyncUnaryCallHandler.h"
 #include "ShuHai/gRPC/Server/AsyncServerStreamHandler.h"
+#include "ShuHai/gRPC/Server/AsyncClientStreamCallHandler.h"
 #include "ShuHai/gRPC/Server/TypeTraits.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
@@ -53,6 +54,17 @@ namespace ShuHai::gRPC::Server
             static_assert(std::is_member_function_pointer_v<RequestFunc>);
             auto handler =
                 new AsyncServerStreamHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
+            _callHandlers.emplace(handler);
+        }
+
+        template<typename RequestFunc>
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerHandler(RequestFunc requestFunc,
+            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
+            typename AsyncRequestTraits<RequestFunc>::ProcessFunc processFunc)
+        {
+            static_assert(std::is_member_function_pointer_v<RequestFunc>);
+            auto handler =
+                new AsyncClientStreamCallHandler<RequestFunc>(queue(), service, requestFunc, std::move(processFunc));
             _callHandlers.emplace(handler);
         }
 

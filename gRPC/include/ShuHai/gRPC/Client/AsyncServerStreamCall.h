@@ -4,6 +4,7 @@
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/RpcInvocationError.h"
 #include "ShuHai/gRPC/CompletionQueueTag.h"
+#include "ShuHai/gRPC/AsyncReaderState.h"
 
 #include <grpcpp/support/async_stream.h>
 #include <google/protobuf/message.h>
@@ -14,13 +15,6 @@ namespace ShuHai::gRPC::Client
 {
     template<typename TAsyncCall>
     class AsyncServerStreamCall;
-
-    enum class AsyncResponseIteratorState
-    {
-        ReadyMoveNext,
-        MovingNext,
-        Finished
-    };
 
     template<typename TAsyncCall>
     class AsyncResponseIterator
@@ -48,9 +42,9 @@ namespace ShuHai::gRPC::Client
 
         [[nodiscard]] const Response& current() const { return _current; }
 
-        [[nodiscard]] AsyncResponseIteratorState state() const { return _state; }
+        [[nodiscard]] AsyncReaderState state() const { return _state; }
 
-        [[nodiscard]] bool finished() const { return _state == AsyncResponseIteratorState::Finished; }
+        [[nodiscard]] bool finished() const { return _state == AsyncReaderState::Finished; }
 
     private:
         friend class AsyncServerStreamCall<AsyncCall>;
@@ -65,18 +59,18 @@ namespace ShuHai::gRPC::Client
         void prepare()
         {
             _currentReadyPromise = {};
-            _state.store(AsyncResponseIteratorState::ReadyMoveNext, std::memory_order_release);
+            _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
         }
 
         void read()
         {
-            _state = AsyncResponseIteratorState::MovingNext;
+            _state = AsyncReaderState::Reading;
             _reader->Read(&_current, new GenericCompletionQueueTag([this](bool ok) { onRead(ok); }));
         }
 
         void finish(bool notify = true)
         {
-            _state = AsyncResponseIteratorState::Finished;
+            _state = AsyncReaderState::Finished;
             auto tag = notify
                 ? static_cast<CompletionQueueTag*>(new GenericCompletionQueueTag([this](bool ok) { onFinished(ok); }))
                 : static_cast<CompletionQueueTag*>(new DummyCompletionQueueTag());
@@ -85,9 +79,9 @@ namespace ShuHai::gRPC::Client
 
         void ensureMoveNext()
         {
-            if (_state == AsyncResponseIteratorState::MovingNext)
+            if (_state == AsyncReaderState::Reading)
                 throw std::logic_error("Attempt to move next while the iterator is moving next.");
-            if (_state == AsyncResponseIteratorState::Finished)
+            if (_state == AsyncReaderState::Finished)
                 throw std::logic_error("Attempt to move next after the iterator is finished.");
         }
 
@@ -97,7 +91,7 @@ namespace ShuHai::gRPC::Client
             _currentReadyPromise = {};
 
             if (ok)
-                _state.store(AsyncResponseIteratorState::ReadyMoveNext, std::memory_order_release);
+                _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
             else
                 finish();
 
@@ -110,7 +104,7 @@ namespace ShuHai::gRPC::Client
         std::promise<bool> _currentReadyPromise;
         Response _current;
         std::function<void(AsyncResponseIterator*)> _onMovedNext;
-        std::atomic<AsyncResponseIteratorState> _state { AsyncResponseIteratorState::ReadyMoveNext };
+        std::atomic<AsyncReaderState> _state { AsyncReaderState::ReadyRead };
 
         grpc::Status& _status;
 
@@ -157,10 +151,7 @@ namespace ShuHai::gRPC::Client
 
         [[nodiscard]] const grpc::Status& status() const { return _status; }
 
-        [[nodiscard]] bool finished() const
-        {
-            return _responseIterator->state() == AsyncResponseIteratorState::Finished;
-        }
+        [[nodiscard]] bool finished() const { return _responseIterator->state() == AsyncReaderState::Finished; }
 
     private:
         struct ResponseIteratorDeleter

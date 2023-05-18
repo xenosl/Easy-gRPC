@@ -59,7 +59,7 @@ namespace ShuHai::gRPC
     private:
         static void notifyComplete(void* tag, bool ok)
         {
-            auto t = static_cast<CqTag*>(tag);
+            auto t = static_cast<CompletionQueueTag*>(tag);
             t->finalizeResult(ok);
             delete t;
         }

@@ -11,14 +11,55 @@ namespace ShuHai::gRPC::Server
      * \tparam F Type of function AsyncService::Request<RpcName> in generated code.
      */
     template<typename F>
-    struct AsyncRequestTraits
-    {
-        using ServiceType = typename FunctionTraits<F>::ClassType;
-        using ResponseWriterType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<2>>;
-        using RequestType = std::remove_pointer_t<typename FunctionTraits<F>::template ArgumentT<1>>;
-        using ResponseType = typename StreamingInterfaceTraits<ResponseWriterType>::WriteType;
+    struct AsyncRequestTraits;
 
-        static constexpr RpcType RpcType = StreamingInterfaceTraits<ResponseWriterType>::RpcType;
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, Request*,
+        grpc::ServerAsyncResponseWriter<Response>* response, grpc::CompletionQueue*, grpc::ServerCompletionQueue*,
+        void*)>
+    {
+        using ServiceType = Service;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ServerAsyncResponseWriter<Response>;
+
+        static constexpr RpcType RpcType = RpcType::NORMAL_RPC;
+    };
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, Request*, grpc::ServerAsyncWriter<Response>*,
+        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
+    {
+        using ServiceType = Service;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ServerAsyncWriter<Response>;
+
+        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
+    };
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, grpc::ServerAsyncReader<Response, Request>*,
+        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
+    {
+        using ServiceType = Service;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ServerAsyncReader<Response, Request>;
+
+        static constexpr RpcType RpcType = RpcType::CLIENT_STREAMING;
+    };
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, grpc::ServerAsyncReaderWriter<Response, Request>*,
+        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
+    {
+        using ServiceType = Service;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ServerAsyncReaderWriter<Response, Request>;
+
+        static constexpr RpcType RpcType = RpcType::BIDI_STREAMING;
     };
 
     template<typename F, RpcType T, typename Result>

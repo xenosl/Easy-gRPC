@@ -11,8 +11,6 @@ namespace ShuHai::gRPC
         virtual ~CompletionQueueTag() = default;
 
         virtual void finalizeResult(bool ok) = 0;
-
-        void* userObject {};
     };
 
     using CqTag = CompletionQueueTag;

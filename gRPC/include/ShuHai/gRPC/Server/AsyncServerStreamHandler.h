@@ -159,10 +159,11 @@ namespace ShuHai::gRPC::Server
     {
     public:
         using RequestFunc = TRequestFunc;
-        using Base = AsyncCallHandler<RequestFunc>;
+        using Base = AsyncCallHandler<TRequestFunc>;
         using Service = typename Base::Service;
         using Request = typename Base::Request;
         using Response = typename Base::Response;
+        using ResponseWriter = typename Base::StreamingInterface;
         using ServerStreamWriter = AsyncServerStreamWriter<RequestFunc>;
         using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, ServerStreamWriter&)>;
 
@@ -177,8 +178,6 @@ namespace ShuHai::gRPC::Server
         ~AsyncServerStreamHandler() { destroyHandlers(); }
 
     private:
-        using ResponseWriter = typename Base::ResponseWriter;
-
         static_assert(std::is_same_v<grpc::ServerAsyncWriter<Response>, ResponseWriter>);
 
         ProcessFunc _processFunc;
