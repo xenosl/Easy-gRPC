@@ -47,7 +47,7 @@ void registerServerStreamHandler(AsyncServer& server)
     {
         HelloReply reply;
         reply.set_message("Hello " + request.name() + " - " + std::to_string(n));
-        return std::move(reply);
+        return reply;
     };
 
     server.registerCallHandler(&Greeter::AsyncService::RequestSayHelloServerStream,
@@ -61,6 +61,28 @@ void registerServerStreamHandler(AsyncServer& server)
             streamWriter.write(makeReply(request, 3));
             streamWriter.write(makeReply(request, 4));
             streamWriter.finish();
+        });
+}
+
+void registerClientStreamHandler(AsyncServer& server)
+{
+    server.registerCallHandler(&Greeter::AsyncService::RequestSayHelloClientStream,
+        [](grpc::ServerContext& context, auto& streamReader)
+        {
+            std::string replyMessage;
+            while (streamReader.moveNext().get())
+            {
+                const HelloRequest& request = streamReader.current();
+                replyMessage += "user " + request.name();
+                replyMessage += '\n';
+                console().writeLine("[ClientStream-Read] HelloRequest: %s", replyMessage.c_str());
+            }
+            replyMessage.pop_back();
+
+            HelloReply reply;
+            reply.set_message(std::move(replyMessage));
+            console().writeLine("[ClientStream-Read] HelloReply: %s", reply.message().c_str());
+            return reply;
         });
 }
 
@@ -106,6 +128,22 @@ void serverStream(AsyncClient& client)
     }
 }
 
+void clientStream(AsyncClient& client)
+{
+    auto call = client.call(&Greeter::Stub::AsyncSayHelloClientStream);
+    auto stream = call->requestStream().get();
+    for (int i = 0; i < 10; ++i)
+    {
+        HelloRequest request;
+        request.set_name("user " + std::to_string(i));
+        auto written = stream->write(request).get();
+        if (!written)
+            break;
+        console().writeLine("[ClientStream-Written] HelloRequest: %s", request.name().c_str());
+    }
+    stream->finish().wait();
+}
+
 int main(int argc, char* argv[])
 {
     constexpr uint16_t Port = 55212;
@@ -114,6 +152,7 @@ int main(int argc, char* argv[])
     AsyncServer server(Port);
     registerUnaryCallHandler(server);
     registerServerStreamHandler(server);
+    registerClientStreamHandler(server);
     server.start();
 
     // Wait for the server start.
@@ -123,6 +162,7 @@ int main(int argc, char* argv[])
     AsyncClient client("localhost:" + std::to_string(Port));
     unaryCall(client);
     serverStream(client);
+    clientStream(client);
 
     // Wait for all calls done.
     waitFor(100);

@@ -2,10 +2,10 @@
 
 namespace ShuHai::gRPC
 {
-    enum class AsyncReaderState
+    enum class AsyncStreamState
     {
-        ReadyRead,
-        Reading,
+        Ready,
+        Streaming,
         Finished
     };
 }

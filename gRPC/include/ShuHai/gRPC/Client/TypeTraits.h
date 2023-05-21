@@ -46,7 +46,7 @@ namespace ShuHai::gRPC::Client
         using StubType = Stub;
         using RequestType = Request;
         using ResponseType = Response;
-        using StreamingInterfaceType = grpc::ClientAsyncWriter<Response>;
+        using StreamingInterfaceType = grpc::ClientAsyncWriter<Request>;
 
         static constexpr RpcType RpcType = RpcType::CLIENT_STREAMING;
     };

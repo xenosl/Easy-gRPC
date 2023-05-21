@@ -4,10 +4,9 @@
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 #include "ShuHai/gRPC/Client/RpcInvocationError.h"
 #include "ShuHai/gRPC/CompletionQueueTag.h"
-#include "ShuHai/gRPC/AsyncReaderState.h"
+#include "ShuHai/gRPC/AsyncStreamState.h"
 
 #include <grpcpp/support/async_stream.h>
-#include <google/protobuf/message.h>
 
 #include <future>
 
@@ -42,9 +41,9 @@ namespace ShuHai::gRPC::Client
 
         [[nodiscard]] const Response& current() const { return _current; }
 
-        [[nodiscard]] AsyncReaderState state() const { return _state; }
+        [[nodiscard]] AsyncStreamState state() const { return _state; }
 
-        [[nodiscard]] bool finished() const { return _state == AsyncReaderState::Finished; }
+        [[nodiscard]] bool finished() const { return _state == AsyncStreamState::Finished; }
 
     private:
         friend class AsyncServerStreamCall<CallFunc>;
@@ -59,18 +58,18 @@ namespace ShuHai::gRPC::Client
         void prepare()
         {
             _currentReadyPromise = {};
-            _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
+            _state.store(AsyncStreamState::Ready, std::memory_order_release);
         }
 
         void read()
         {
-            _state = AsyncReaderState::Reading;
+            _state = AsyncStreamState::Streaming;
             _reader->Read(&_current, new GenericCompletionQueueTag([this](bool ok) { onRead(ok); }));
         }
 
         void finish(bool notify = true)
         {
-            _state = AsyncReaderState::Finished;
+            _state = AsyncStreamState::Finished;
             auto tag = notify
                 ? static_cast<CompletionQueueTag*>(new GenericCompletionQueueTag([this](bool ok) { onFinished(ok); }))
                 : static_cast<CompletionQueueTag*>(new DummyCompletionQueueTag());
@@ -79,9 +78,9 @@ namespace ShuHai::gRPC::Client
 
         void ensureMoveNext()
         {
-            if (_state == AsyncReaderState::Reading)
+            if (_state == AsyncStreamState::Streaming)
                 throw std::logic_error("Attempt to move next while the iterator is moving next.");
-            if (_state == AsyncReaderState::Finished)
+            if (_state == AsyncStreamState::Finished)
                 throw std::logic_error("Attempt to move next after the iterator is finished.");
         }
 
@@ -91,7 +90,7 @@ namespace ShuHai::gRPC::Client
             _currentReadyPromise = {};
 
             if (ok)
-                _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
+                _state.store(AsyncStreamState::Ready, std::memory_order_release);
             else
                 finish();
 
@@ -104,7 +103,7 @@ namespace ShuHai::gRPC::Client
         std::promise<bool> _currentReadyPromise;
         Response _current;
         std::function<void(AsyncResponseStreamReader*)> _onMovedNext;
-        std::atomic<AsyncReaderState> _state { AsyncReaderState::ReadyRead };
+        std::atomic<AsyncStreamState> _state { AsyncStreamState::Ready };
 
         grpc::Status& _status;
 
@@ -124,10 +123,7 @@ namespace ShuHai::gRPC::Client
         using Stub = typename Base::Stub;
         using Request = typename Base::Request;
         using Response = typename Base::Response;
-        using ResponseStream = AsyncResponseStreamReader<CallFunc>;
-
-        static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
-        static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
+        using ResponseStream = AsyncResponseStreamReader<TCallFunc>;
 
         AsyncServerStreamCall(Stub* stub, CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context,
             const Request& request, grpc::CompletionQueue* queue,
@@ -145,7 +141,7 @@ namespace ShuHai::gRPC::Client
 
         std::future<ResponseStream*> responseStream() { return _responseStreamPromise.get_future(); }
 
-        [[nodiscard]] bool finished() const { return _responseStream->state() == AsyncReaderState::Finished; }
+        [[nodiscard]] bool finished() const { return _responseStream->state() == AsyncStreamState::Finished; }
 
     private:
         struct ResponseStreamDeleter

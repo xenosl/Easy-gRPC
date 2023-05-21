@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
 #include "ShuHai/gRPC/CompletionQueueTag.h"
-#include "ShuHai/gRPC/AsyncReaderState.h"
+#include "ShuHai/gRPC/AsyncStreamState.h"
 
 #include <grpcpp/server_context.h>
 
@@ -25,7 +25,7 @@ namespace ShuHai::gRPC::Server
 
         std::future<bool> moveNext()
         {
-            ensureMoveNext();
+            throwIfCantMoveNext();
             read();
             return _currentReadyPromise.get_future();
         }
@@ -43,27 +43,27 @@ namespace ShuHai::gRPC::Server
         void prepare()
         {
             _currentReadyPromise = {};
-            _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
+            _state.store(AsyncStreamState::Ready, std::memory_order_release);
         }
 
         void read()
         {
-            _state = AsyncReaderState::Reading;
+            _state = AsyncStreamState::Streaming;
             _reader.Read(&_current, new GenericCompletionQueueTag([this](bool ok) { onRead(ok); }));
         }
 
         void finish(const Response& response)
         {
-            _state = AsyncReaderState::Finished;
+            _state = AsyncStreamState::Finished;
             _reader.Finish(
                 response, grpc::Status::OK, new GenericCompletionQueueTag([this](bool ok) { onFinished(ok); }));
         }
 
-        void ensureMoveNext()
+        void throwIfCantMoveNext()
         {
-            if (_state == AsyncReaderState::Reading)
+            if (_state == AsyncStreamState::Streaming)
                 throw std::logic_error("Attempt to move next while the iterator is moving next.");
-            if (_state == AsyncReaderState::Finished)
+            if (_state == AsyncStreamState::Finished)
                 throw std::logic_error("Attempt to move next after the iterator is finished.");
         }
 
@@ -77,9 +77,7 @@ namespace ShuHai::gRPC::Server
             _currentReadyPromise = {};
 
             if (ok)
-                _state.store(AsyncReaderState::ReadyRead, std::memory_order_release);
-            else
-                finish();
+                _state.store(AsyncStreamState::Ready, std::memory_order_release);
         }
 
         void onFinished(bool ok)
@@ -92,7 +90,7 @@ namespace ShuHai::gRPC::Server
 
         std::promise<bool> _currentReadyPromise;
         Request _current;
-        std::atomic<AsyncReaderState> _state { AsyncReaderState::ReadyRead };
+        std::atomic<AsyncStreamState> _state { AsyncStreamState::Ready };
 
         StreamReader _reader;
 
@@ -109,26 +107,22 @@ namespace ShuHai::gRPC::Server
         using Request = typename Base::Request;
         using Response = typename Base::Response;
         using StreamReader = typename Base::StreamingInterface;
-        using ProcessFunc = std::function<void(grpc::ServerContext&, StreamReader&)>;
+        using ClientStreamReader = AsyncRequestStreamReader<TRequestFunc>;
+        using ProcessFunc = std::function<Response(grpc::ServerContext&, ClientStreamReader&)>;
 
         static_assert(std::is_same_v<grpc::ServerAsyncReader<Response, Request>, StreamReader>);
 
         AsyncClientStreamCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,
             RequestFunc requestFunc, ProcessFunc processFunc)
-            : _completionQueue(completionQueue)
-            , _service(service)
-            , _requestFunc(requestFunc)
+            : Base(completionQueue, service, requestFunc)
             , _processFunc(std::move(processFunc))
         {
-            new Handler(this);
+            newHandler();
         }
 
-        ~AsyncClientStreamCallHandler() override { destroyHandlers(); }
+        ~AsyncClientStreamCallHandler() override { deleteHandlers(); }
 
     private:
-        grpc::ServerCompletionQueue* const _completionQueue;
-        Service* const _service;
-        const RequestFunc _requestFunc;
         ProcessFunc _processFunc;
 
     private:
@@ -146,13 +140,9 @@ namespace ShuHai::gRPC::Server
                 auto requestFunc = _owner->_requestFunc;
                 auto cq = _owner->_completionQueue;
 
-                (service->*requestFunc)(&_context, &_requestStreamReader, cq, cq,
+                (service->*requestFunc)(&_context, &_requestStreamReader._reader, cq, cq,
                     new GenericCompletionQueueTag([&](bool ok) { onRequestResult(ok); }));
-
-                _owner->_handlers.emplace(this);
             }
-
-            ~Handler() { _owner->_handlers.erase(this); }
 
         private:
             void onRequestResult(bool ok)
@@ -162,26 +152,36 @@ namespace ShuHai::gRPC::Server
 
                 if (ok)
                 {
-                    new Handler(_owner);
+                    _owner->newHandler();
 
                     _requestStreamReader.prepare();
-                    _owner->_processFunc(_context, _requestStreamReader);
+                    auto response = _owner->_processFunc(_context, _requestStreamReader);
+                    _requestStreamReader.finish(response);
                 }
                 else
                 {
-                    delete this;
+                    _owner->deleteHandler(this);
                 }
             }
 
-            void onFinished(bool) { delete this; }
+            void onFinished(bool) { _owner->deleteHandler(this); }
 
             AsyncClientStreamCallHandler* _owner;
 
             grpc::ServerContext _context;
-            StreamReader _requestStreamReader;
+            ClientStreamReader _requestStreamReader;
         };
 
-        void destroyHandlers()
+        void newHandler() { _handlers.emplace(new Handler(this)); }
+
+        void deleteHandler(Handler* handler)
+        {
+            auto it = _handlers.find(handler);
+            delete *it;
+            _handlers.erase(it);
+        }
+
+        void deleteHandlers()
         {
             auto it = _handlers.begin();
             while (it != _handlers.end())

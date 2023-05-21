@@ -82,6 +82,17 @@ namespace ShuHai::gRPC::Client
             return call;
         }
 
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::CLIENT_STREAMING, std::shared_ptr<AsyncClientStreamCall<CallFunc>>>
+        call(CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context = nullptr)
+        {
+            using Call = AsyncClientStreamCall<CallFunc>;
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context),
+                _cqWorker->queue(), [this](auto c) { removeStreamingCall(c); });
+            addStreamingCall(static_cast<AsyncCallPtr>(call));
+            return call;
+        }
+
     private:
         using AsyncCallPtr = std::shared_ptr<AsyncCallBase>;
 

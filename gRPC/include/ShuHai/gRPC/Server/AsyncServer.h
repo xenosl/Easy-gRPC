@@ -30,7 +30,7 @@ namespace ShuHai::gRPC::Server
             foreachService([&](auto s) { builder.RegisterService(s); });
 
             for (size_t i = 0; i < numCompletionQueues; ++i)
-                _queues.emplace_back(std::make_unique<CompletionQueueWorker>(builder.AddCompletionQueue()));
+                _queueWorkers.emplace_back(std::make_unique<CompletionQueueWorker>(builder.AddCompletionQueue()));
 
             _server = builder.BuildAndStart();
             if (!_server)
@@ -48,7 +48,7 @@ namespace ShuHai::gRPC::Server
             if (started())
                 throw std::logic_error("The server already started.");
 
-            for (auto& queue : _queues)
+            for (auto& queue : _queueWorkers)
             {
                 auto t = std::make_unique<std::thread>(
                     [&]()
@@ -71,15 +71,15 @@ namespace ShuHai::gRPC::Server
                 return;
 
             _server->Shutdown();
-            for (auto& queue : _queues)
-                queue->shutdown();
+            for (auto& w : _queueWorkers)
+                w->shutdown();
 
             for (auto& t : _queueThreads)
                 t->join();
             _queueThreads.clear();
 
             _server = nullptr;
-            _queues.clear();
+            _queueWorkers.clear();
         }
 
         [[nodiscard]] bool started() const { return _started; }
@@ -89,7 +89,7 @@ namespace ShuHai::gRPC::Server
 
         std::unique_ptr<grpc::Server> _server;
 
-        std::vector<std::unique_ptr<CompletionQueueWorker>> _queues;
+        std::vector<std::unique_ptr<CompletionQueueWorker>> _queueWorkers;
         std::vector<std::unique_ptr<std::thread>> _queueThreads;
 
 
@@ -159,8 +159,8 @@ namespace ShuHai::gRPC::Server
             typename AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& queue = _queues.at(queueIndex);
-            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+            auto& w = _queueWorkers.at(queueIndex);
+            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
         }
 
         template<typename RequestFunc>
@@ -168,18 +168,17 @@ namespace ShuHai::gRPC::Server
             typename AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& queue = _queues.at(queueIndex);
-            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+            auto& w = _queueWorkers.at(queueIndex);
+            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
         }
 
         template<typename RequestFunc>
-        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerHandler(RequestFunc requestFunc,
-            typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            typename AsyncRequestTraits<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
+            typename AsyncClientStreamCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
         {
-            using Service = typename AsyncClientStreamCallHandler<RequestFunc>::ServiceType;
-            auto& queue = _queues.at(queueIndex);
-            queue->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+            using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
+            auto& w = _queueWorkers.at(queueIndex);
+            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
         }
     };
 }

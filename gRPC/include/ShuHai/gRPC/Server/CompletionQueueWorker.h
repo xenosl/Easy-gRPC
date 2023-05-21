@@ -58,9 +58,9 @@ namespace ShuHai::gRPC::Server
         }
 
         template<typename RequestFunc>
-        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerHandler(RequestFunc requestFunc,
+        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
             typename AsyncRequestTraits<RequestFunc>::ServiceType* service,
-            typename AsyncRequestTraits<RequestFunc>::ProcessFunc processFunc)
+            typename AsyncClientStreamCallHandler<RequestFunc>::ProcessFunc processFunc)
         {
             static_assert(std::is_member_function_pointer_v<RequestFunc>);
             auto handler =

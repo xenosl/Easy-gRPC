@@ -3,6 +3,7 @@
 #include "ShuHai/gRPC/Client/TypeTraits.h"
 
 #include <grpcpp/client_context.h>
+#include <google/protobuf/message.h>
 
 #include <memory>
 
@@ -39,6 +40,9 @@ namespace ShuHai::gRPC::Client
         using Response = typename AsyncCallTraits<TCallFunc>::ResponseType;
         using ResultCallback = std::function<void(std::future<Response>&&)>;
         using StreamingInterfaceType = typename AsyncCallTraits<TCallFunc>::StreamingInterfaceType;
+
+        static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
+        static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
 
         explicit AsyncCall(std::unique_ptr<grpc::ClientContext> context)
             : AsyncCallBase(std::move(context))
