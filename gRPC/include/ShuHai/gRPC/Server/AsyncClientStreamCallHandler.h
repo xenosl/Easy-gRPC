@@ -25,7 +25,12 @@ namespace ShuHai::gRPC::Server
 
         std::future<bool> moveNext()
         {
-            throwIfCantMoveNext();
+            auto state = _state.load(std::memory_order_acquire);
+            if (state == AsyncStreamState::Streaming)
+                throw std::logic_error("Attempt to move next while the iterator is moving next.");
+            if (state == AsyncStreamState::Finished)
+                throw std::logic_error("Attempt to move next after the iterator is finished.");
+
             read();
             return _currentReadyPromise.get_future();
         }
@@ -57,14 +62,6 @@ namespace ShuHai::gRPC::Server
             _state = AsyncStreamState::Finished;
             _reader.Finish(
                 response, grpc::Status::OK, new GenericCompletionQueueTag([this](bool ok) { onFinished(ok); }));
-        }
-
-        void throwIfCantMoveNext()
-        {
-            if (_state == AsyncStreamState::Streaming)
-                throw std::logic_error("Attempt to move next while the iterator is moving next.");
-            if (_state == AsyncStreamState::Finished)
-                throw std::logic_error("Attempt to move next after the iterator is finished.");
         }
 
         void onRead(bool ok)
@@ -166,16 +163,21 @@ namespace ShuHai::gRPC::Server
 
             void onFinished(bool) { _owner->deleteHandler(this); }
 
-            AsyncClientStreamCallHandler* _owner;
+            AsyncClientStreamCallHandler* const _owner;
 
             grpc::ServerContext _context;
             ClientStreamReader _requestStreamReader;
         };
 
-        void newHandler() { _handlers.emplace(new Handler(this)); }
+        void newHandler()
+        {
+            std::lock_guard l(_handlersMutex);
+            _handlers.emplace(new Handler(this));
+        }
 
         void deleteHandler(Handler* handler)
         {
+            std::lock_guard l(_handlersMutex);
             auto it = _handlers.find(handler);
             delete *it;
             _handlers.erase(it);
@@ -183,6 +185,8 @@ namespace ShuHai::gRPC::Server
 
         void deleteHandlers()
         {
+            std::lock_guard l(_handlersMutex);
+
             auto it = _handlers.begin();
             while (it != _handlers.end())
             {
@@ -191,6 +195,7 @@ namespace ShuHai::gRPC::Server
             }
         }
 
+        std::mutex _handlersMutex;
         std::unordered_set<Handler*> _handlers;
     };
 }

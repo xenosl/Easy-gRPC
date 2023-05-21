@@ -63,6 +63,24 @@ namespace ShuHai::gRPC::Client
         static constexpr RpcType RpcType = RpcType::BIDI_STREAMING;
     };
 
+    template<typename F>
+    using StubTypeOf = typename AsyncCallTraits<F>::StubType;
+
+    template<typename F>
+    using RequestTypeOf = typename AsyncCallTraits<F>::RequestType;
+
+    template<typename F>
+    using ResponseTypeOf = typename AsyncCallTraits<F>::ResponseType;
+
+    template<typename F>
+    using StreamingInterfaceTypeOf = typename AsyncCallTraits<F>::StreamingInterfaceType;
+
+    template<typename F>
+    static constexpr RpcType rpcTypeOf()
+    {
+        return AsyncCallTraits<F>::RpcType;
+    }
+
     template<typename F, RpcType T, typename Result>
     using EnableIfRpcTypeMatch = std::enable_if_t<AsyncCallTraits<F>::RpcType == T, Result>;
 }
