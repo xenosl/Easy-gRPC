@@ -1,111 +1,100 @@
 #pragma once
 
-#include "ShuHai/gRPC/Client/AsyncCallBase.h"
-#include "ShuHai/gRPC/Client/TypeTraits.h"
-#include "ShuHai/gRPC/Client/Exceptions.h"
-#include "ShuHai/gRPC/CompletionQueueTag.h"
+#include "ShuHai/gRPC/Client/AsyncCall.h"
+#include "ShuHai/gRPC/Client/AsyncCallError.h"
+#include "ShuHai/gRPC/Client/AsyncCallAction.h"
+#include "ShuHai/gRPC/Client/StreamActions.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
 
+#include <atomic>
 #include <future>
 #include <functional>
+#include <cassert>
 
 namespace ShuHai::gRPC::Client
 {
-    template<typename TCallFunc>
-    class AsyncUnaryCall : public AsyncCall<TCallFunc>
+    enum class AsyncUnaryResponseMode
+    {
+        Block,
+        Callback
+    };
+
+    template<typename CallFunc>
+    class AsyncUnaryCall
+        : public AsyncCall
+        , public std::enable_shared_from_this<AsyncUnaryCall<CallFunc>>
     {
     public:
-        using Base = AsyncCall<TCallFunc>;
-        using CallFunc = typename Base::CallFunc;
-        using Stub = typename Base::Stub;
-        using Request = typename Base::Request;
-        using Response = typename Base::Response;
-        using ResponseReader = typename Base::StreamingInterfaceType;
-        using ResultCallback = std::function<void(std::future<Response>&&)>;
+        SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(CallFunc);
 
-        static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
-        static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
-        static_assert(std::is_same_v<grpc::ClientAsyncResponseReader<Response>, ResponseReader>);
+        using ResponseCallback = std::function<void(std::future<Response>&&)>;
+        using DeadCallback = std::function<void(std::shared_ptr<AsyncUnaryCall>)>;
 
-        explicit AsyncUnaryCall(std::unique_ptr<grpc::ClientContext> context)
-            : Base(std::move(context))
-        { }
-
-        ~AsyncUnaryCall() override = default;
-
-        std::future<Response> invoke(
-            Stub* stub, CallFunc asyncCall, const Request& request, grpc::CompletionQueue* queue)
+        explicit AsyncUnaryCall(Stub* stub, CallFunc func, const Request& request, grpc::CompletionQueue* cq,
+            std::unique_ptr<grpc::ClientContext> context, ResponseCallback responseCallback, DeadCallback deadCallback)
+            : AsyncCall(std::move(context))
+            , _responseCallback(std::move(responseCallback))
+            , _deadCallback(std::move(deadCallback))
         {
-            invokeImpl(stub, asyncCall, request, queue);
-            return _resultPromise.get_future();
+            _stream = (stub->*func)(this->_context.get(), request, cq);
+            unaryCallFinish<Response>(*_stream, &_response, &this->_status, [this](bool ok) { finalizeFinished(ok); });
         }
 
-        void invoke(Stub* stub, CallFunc asyncCall, const Request& request, grpc::CompletionQueue* queue,
-            ResultCallback callback)
+        std::future<Response> getResponseFuture()
         {
-            invokeImpl(stub, asyncCall, request, queue);
-            _resultCallback = std::move(callback);
+            if (responseMode() != AsyncUnaryResponseMode::Block)
+                throw std::logic_error("The function is only available in block mode.");
+            return _responsePromise.get_future();
         }
 
-        [[nodiscard]] const Response& response() const { return _response; }
+        /**
+         * \brief Indicates whether the rpc is returned from server, used for check validity of this->context() and
+         *  this->status().
+         * \remark When you get context or status from current call, you may want to make sure whether the current call
+         *  is returned from server (so that you can get initial and trailing metadata coming from the server or get the
+         *  right status of current rpc), the method achieved the goal.
+         */
+        [[nodiscard]] bool returned() const { return _returned.load(std::memory_order_acquire); }
+
+        [[nodiscard]] AsyncUnaryResponseMode responseMode() const
+        {
+            return _responseCallback ? AsyncUnaryResponseMode::Callback : AsyncUnaryResponseMode::Block;
+        }
 
     private:
-        void invokeImpl(Stub* stub, CallFunc asyncCall, const Request& request, grpc::CompletionQueue* queue)
+        void finalizeFinished(bool ok)
         {
-            _responseReader = (stub->*asyncCall)(this->_context.get(), request, queue);
-            _responseReader->Finish(
-                &_response, &this->_status, new GenericCompletionQueueTag([this](bool ok) { onFinished(ok); }));
-        }
+            // ok should always be true
+            assert(ok);
 
-        void finish()
-        {
+            _returned.store(true, std::memory_order_release);
+
             try
             {
                 if (!this->_status.ok())
                     throw AsyncCallError(std::move(this->_status));
-
-                _resultPromise.set_value(std::move(_response));
+                _responsePromise.set_value(std::move(_response));
             }
             catch (...)
             {
-                _resultPromise.set_exception(std::current_exception());
+                _responsePromise.set_exception(std::current_exception());
             }
 
-            if (_resultCallback)
-                _resultCallback(_resultPromise.get_future());
+            if (_responseCallback)
+                _responseCallback(_responsePromise.get_future());
+
+            _deadCallback(this->shared_from_this());
         }
 
-        void throws()
-        {
-            try
-            {
-                throw AsyncQueueError();
-            }
-            catch (...)
-            {
-                _resultPromise.set_exception(std::current_exception());
-            }
-
-            if (_resultCallback)
-                _resultCallback(_resultPromise.get_future());
-        }
-
-        void onFinished(bool ok)
-        {
-            if (ok)
-                finish();
-            else
-                throws();
-
-            delete this;
-        }
-
-        std::unique_ptr<grpc::ClientAsyncResponseReader<Response>> _responseReader;
+        std::unique_ptr<StreamingInterface> _stream;
         Response _response;
+        std::promise<Response> _responsePromise;
+        ResponseCallback _responseCallback;
 
-        std::promise<Response> _resultPromise;
-        ResultCallback _resultCallback;
+        DeadCallback _deadCallback;
+
+        std::atomic<bool> _returned { false };
     };
 }

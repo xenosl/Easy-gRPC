@@ -16,9 +16,11 @@ namespace ShuHai::gRPC::Server
     struct AsyncRequestTraits;
 
     template<typename Service, typename Request, typename Response>
-    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, Request*,
-        grpc::ServerAsyncResponseWriter<Response>* response, grpc::CompletionQueue*, grpc::ServerCompletionQueue*,
-        void*)>
+    using AsyncUnaryCallRequestFunc = void (Service::*)(grpc::ServerContext*, Request*,
+        grpc::ServerAsyncResponseWriter<Response>*, grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*);
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<AsyncUnaryCallRequestFunc<Service, Request, Response>>
     {
         using ServiceType = Service;
         using RequestType = Request;
@@ -29,20 +31,11 @@ namespace ShuHai::gRPC::Server
     };
 
     template<typename Service, typename Request, typename Response>
-    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, Request*, grpc::ServerAsyncWriter<Response>*,
-        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
-    {
-        using ServiceType = Service;
-        using RequestType = Request;
-        using ResponseType = Response;
-        using StreamingInterfaceType = grpc::ServerAsyncWriter<Response>;
-
-        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
-    };
+    using ClientStreamRequestFunc = void (Service::*)(grpc::ServerContext*, grpc::ServerAsyncReader<Response, Request>*,
+        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*);
 
     template<typename Service, typename Request, typename Response>
-    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, grpc::ServerAsyncReader<Response, Request>*,
-        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
+    struct AsyncRequestTraits<ClientStreamRequestFunc<Service, Request, Response>>
     {
         using ServiceType = Service;
         using RequestType = Request;
@@ -53,8 +46,26 @@ namespace ShuHai::gRPC::Server
     };
 
     template<typename Service, typename Request, typename Response>
-    struct AsyncRequestTraits<void (Service::*)(grpc::ServerContext*, grpc::ServerAsyncReaderWriter<Response, Request>*,
-        grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*)>
+    using ServerStreamRequestFunc = void (Service::*)(grpc::ServerContext*, Request*,
+        grpc::ServerAsyncWriter<Response>*, grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*);
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<ServerStreamRequestFunc<Service, Request, Response>>
+    {
+        using ServiceType = Service;
+        using RequestType = Request;
+        using ResponseType = Response;
+        using StreamingInterfaceType = grpc::ServerAsyncWriter<Response>;
+
+        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
+    };
+
+    template<typename Service, typename Request, typename Response>
+    using BidiStreamRequestFunc = void (Service::*)(grpc::ServerContext*,
+        grpc::ServerAsyncReaderWriter<Response, Request>*, grpc::CompletionQueue*, grpc::ServerCompletionQueue*, void*);
+
+    template<typename Service, typename Request, typename Response>
+    struct AsyncRequestTraits<BidiStreamRequestFunc<Service, Request, Response>>
     {
         using ServiceType = Service;
         using RequestType = Request;
@@ -82,6 +93,21 @@ namespace ShuHai::gRPC::Server
         return AsyncRequestTraits<F>::RpcType;
     }
 
-    template<typename F, RpcType T, typename Result>
-    using EnableIfRpcTypeMatch = std::enable_if_t<AsyncRequestTraits<F>::RpcType == T, Result>;
+    template<typename F, RpcType T, typename EnabledType>
+    using EnableIfRpcTypeMatch = std::enable_if_t<rpcTypeOf<F>() == T, EnabledType>;
+
+    template<typename EnabledType, typename F, RpcType... RpcTypes>
+    using EnableIfAnyRpcTypeMatch = std::enable_if_t<((rpcTypeOf<F>() == RpcTypes) || ...), EnabledType>;
 }
+
+#define SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(F) \
+    using Service = typename AsyncRequestTraits<F>::ServiceType; \
+    using Request = typename AsyncRequestTraits<F>::RequestType; \
+    using Response = typename AsyncRequestTraits<F>::ResponseType; \
+    using StreamingInterface = typename AsyncRequestTraits<F>::StreamingInterfaceType; \
+    static constexpr gRPC::RpcType RpcType = AsyncRequestTraits<F>::RpcType; \
+\
+    static_assert(std::is_member_function_pointer_v<F>); \
+    static_assert(std::is_base_of_v<grpc::Service, Service>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Response>)

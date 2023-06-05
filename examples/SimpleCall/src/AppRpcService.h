@@ -17,9 +17,8 @@ namespace ShuHai::gRPC::Examples
             server.registerCallHandler(&Service::RequestShutdown, &Shutdown);
         }
 
-        static void Launch(
-            grpc::ServerContext& context, const Proto::App::LaunchRequest& request, Proto::App::LaunchReply& reply);
-        static void Shutdown(
-            grpc::ServerContext& context, const Proto::App::ShutdownRequest& request, Proto::App::ShutdownReply& reply);
+        static Proto::App::LaunchReply Launch(grpc::ServerContext& context, const Proto::App::LaunchRequest& request);
+        static Proto::App::ShutdownReply Shutdown(
+            grpc::ServerContext& context, const Proto::App::ShutdownRequest& request);
     };
 }

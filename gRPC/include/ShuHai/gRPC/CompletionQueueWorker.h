@@ -1,9 +1,10 @@
 #pragma once
 
-#include "ShuHai/gRPC/CompletionQueueTag.h"
+#include "ShuHai/gRPC/AsyncAction.h"
 
 #include <grpcpp/completion_queue.h>
 
+#include <atomic>
 #include <utility>
 #include <type_traits>
 
@@ -13,17 +14,14 @@ namespace ShuHai::gRPC
      * \brief grpc::CompletionQueue wrapper for its polling and event handling.
      *  Note: The class con only handle events tagged by CompletionQueueTag.
      */
-    template<typename Queue>
     class CompletionQueueWorker
     {
     public:
-        static_assert(std::is_base_of_v<grpc::CompletionQueue, Queue>);
-
-        explicit CompletionQueueWorker(std::unique_ptr<Queue> queue)
+        explicit CompletionQueueWorker(std::unique_ptr<grpc::CompletionQueue> queue)
             : _queue(std::move(queue))
         { }
 
-        virtual ~CompletionQueueWorker() = default;
+        virtual ~CompletionQueueWorker() { waitForShutdown(); }
 
         CompletionQueueWorker(const CompletionQueueWorker&) = delete;
         CompletionQueueWorker& operator=(const CompletionQueueWorker&) = delete;
@@ -38,32 +36,48 @@ namespace ShuHai::gRPC
             void* tag {};
             bool ok;
             auto status = _queue->AsyncNext(&tag, &ok, deadline);
+            bool nextPoll;
             switch (status)
             {
             case grpc::CompletionQueue::SHUTDOWN:
-                return false;
+                nextPoll = false;
+                break;
             case grpc::CompletionQueue::GOT_EVENT:
-                notifyComplete(tag, ok);
-                return true;
+                finalizeResult(tag, ok);
+                nextPoll = true;
+                break;
             case grpc::CompletionQueue::TIMEOUT:
-                return true;
+                nextPoll = true;
+                break;
             default:
                 throw std::runtime_error("Unsupported completion queue status.");
             }
+
+            _pollStatus.store(status, std::memory_order_release);
+
+            return nextPoll;
         }
 
-        void shutdown() { _queue->Shutdown(); }
+        virtual void shutdown() { _queue->Shutdown(); }
 
-        [[nodiscard]] Queue* queue() const { return _queue.get(); }
+        [[nodiscard]] grpc::CompletionQueue* queue() const { return _queue.get(); }
+
+    protected:
+        void waitForShutdown()
+        {
+            while (_pollStatus.load(std::memory_order_acquire) != grpc::CompletionQueue::SHUTDOWN)
+                continue;
+        }
 
     private:
-        static void notifyComplete(void* tag, bool ok)
+        static void finalizeResult(void* tag, bool ok)
         {
-            auto t = static_cast<CompletionQueueTag*>(tag);
-            t->finalizeResult(ok);
-            delete t;
+            auto action = static_cast<AsyncAction*>(tag);
+            action->finalizeResult(ok);
+            delete action;
         }
 
-        std::unique_ptr<Queue> _queue;
+        std::unique_ptr<grpc::CompletionQueue> _queue;
+        std::atomic<grpc::CompletionQueue::NextStatus> _pollStatus;
     };
 }

@@ -1,137 +1,79 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
-#include "ShuHai/gRPC/Server/TypeTraits.h"
-#include "ShuHai/gRPC/CompletionQueueTag.h"
+#include "ShuHai/gRPC/Server/ServiceRequestAction.h"
+#include "ShuHai/gRPC/Server/StreamActions.h"
 
-#include <ShuHai/FunctionTraits.h>
-
-#include <grpcpp/grpcpp.h>
-#include <google/protobuf/message.h>
-
-#include <unordered_set>
-#include <stdexcept>
-#include <type_traits>
+#include <atomic>
 
 namespace ShuHai::gRPC::Server
 {
-    template<typename TRequestFunc>
-    class AsyncUnaryCallHandler : public AsyncCallHandler<TRequestFunc>
+    template<typename RequestFunc>
+    class AsyncUnaryCallHandler : public AsyncCallHandler<RequestFunc>
     {
     public:
-        using RequestFunc = TRequestFunc;
-        using Base = AsyncCallHandler<RequestFunc>;
-        using Service = typename Base::Service;
-        using Request = typename Base::Request;
-        using Response = typename Base::Response;
-        using ResponseWriter = typename Base::StreamingInterface;
-        using ProcessFunc = std::function<void(grpc::ServerContext&, const Request&, Response&)>;
+        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFunc);
+
+        using HandleFunc = std::function<Response(grpc::ServerContext&, const Request&)>;
 
         explicit AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,
-            RequestFunc requestFunc, ProcessFunc processFunc)
-            : AsyncCallHandler<TRequestFunc>(completionQueue, service, requestFunc)
-            , _processFunc(std::move(processFunc))
+            RequestFunc requestFunc, HandleFunc handleFunc)
+            : AsyncCallHandler<RequestFunc>(completionQueue, service, requestFunc)
+            , _handleFunc(std::move(handleFunc))
         {
-            newHandler();
+            newCallRequest();
         }
 
-        ~AsyncUnaryCallHandler() { deleteAllHandlers(); }
-
     private:
-        ProcessFunc _processFunc;
-
-        // Handlers ----------------------------------------------------------------------------------------------------
-    private:
-        class Handler;
-        using HandlerCallback = void (AsyncUnaryCallHandler::*)(Handler*, bool);
-
-        class Handler
+        struct Call
         {
-        public:
-            explicit Handler(AsyncUnaryCallHandler* owner, HandlerCallback onProcess, HandlerCallback onFinish)
-                : _owner(owner)
-                , _onProcess(onProcess)
-                , _onFinish(onFinish)
-                , _responseWriter(&_context)
+            Call()
+                : stream(&context)
             { }
 
-            void request()
-            {
-                auto cq = _owner->_completionQueue;
-                auto service = _owner->_service;
-                auto requestFunc = _owner->_requestFunc;
+            ~Call() { }
 
-                (service->*requestFunc)(
-                    &_context, &_request, &_responseWriter, cq, cq, new GcqTag([&](bool ok) { process(ok); }));
-            }
-
-        private:
-            void process(bool ok)
-            {
-                (_owner->*_onProcess)(this, ok);
-
-                if (!ok)
-                    return;
-
-                Response response;
-                _owner->_processFunc(_context, _request, response);
-                _responseWriter.Finish(response, grpc::Status::OK, new GcqTag([&](bool ok) { finish(ok); }));
-            }
-
-            void finish(bool ok) { (_owner->*_onFinish)(this, ok); }
-
-            AsyncUnaryCallHandler* const _owner;
-            HandlerCallback _onProcess;
-            HandlerCallback _onFinish;
-
-            grpc::ServerContext _context;
-            ResponseWriter _responseWriter;
-            Request _request;
+            grpc::ServerContext context;
+            StreamingInterface stream;
+            Request request;
         };
 
-        void newHandler()
+        void newCallRequest()
         {
-            auto handler =
-                new Handler(this, &AsyncUnaryCallHandler::onHandlerProcess, &AsyncUnaryCallHandler::onHandlerFinish);
-            _handlers.emplace(handler);
-            handler->request();
+            auto call = new Call();
+            auto cq = this->_completionQueue;
+            serviceRequest(this->_service, this->_requestFunc, &call->context, &call->request, &call->stream, cq, cq,
+                [this, call](bool ok) { finalizeCallRequest(call, ok); });
         }
 
-        bool deleteHandler(Handler* handler)
+        void finalizeCallRequest(Call* call, bool ok)
         {
-            auto it = _handlers.find(handler);
-            if (it == _handlers.end())
-                return false;
-            deleteHandler(it);
-            return true;
-        }
+            // ok indicates that the RPC has indeed been started.
+            // If it is false, the server has been Shutdown before this particular call got matched to an incoming RPC.
 
-        auto deleteHandler(typename std::unordered_set<Handler*>::iterator it)
-        {
-            assert(it != _handlers.end());
-            auto handler = *it;
-            it = _handlers.erase(it);
-            delete handler;
-            return it;
-        }
-
-        void deleteAllHandlers()
-        {
-            auto it = _handlers.begin();
-            while (it != _handlers.end())
-                it = deleteHandler(it);
-        }
-
-        void onHandlerProcess(Handler* handler, bool ok)
-        {
             if (ok)
-                newHandler();
+            {
+                newCallRequest();
+
+                auto response = _handleFunc(call->context, call->request);
+                unaryCallFinish<Response>(
+                    call->stream, response, grpc::Status::OK, [this, call](bool ok) { finalizeCallFinish(call, ok); });
+            }
             else
-                deleteHandler(handler);
+            {
+                delete call;
+            }
         }
 
-        void onHandlerFinish(Handler* handler, bool ok) { deleteHandler(handler); }
+        void finalizeCallFinish(Call* call, bool ok)
+        {
+            // ok means that the data/metadata/status/etc is going to go to the wire.
+            // If it is false, it not going to the wire because the call is already dead (i.e., canceled, deadline
+            // expired, other side dropped the channel, etc).
 
-        std::unordered_set<Handler*> _handlers;
+            delete call;
+        }
+
+        HandleFunc _handleFunc;
     };
 }

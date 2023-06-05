@@ -10,31 +10,31 @@ namespace ShuHai::gRPC::Server
     class AsyncCallHandlerBase
     {
     public:
+        explicit AsyncCallHandlerBase(grpc::ServerCompletionQueue* completionQueue)
+            : _completionQueue(completionQueue)
+        { }
+
         virtual ~AsyncCallHandlerBase() = default;
+
+        virtual void shutdown() { }
+
+    protected:
+        grpc::ServerCompletionQueue* const _completionQueue;
     };
 
-    template<typename TRequestFunc>
+    template<typename RequestFunc>
     class AsyncCallHandler : public AsyncCallHandlerBase
     {
     public:
-        using RequestFunc = TRequestFunc;
-        using Service = typename AsyncRequestTraits<TRequestFunc>::ServiceType;
-        using Request = typename AsyncRequestTraits<TRequestFunc>::RequestType;
-        using Response = typename AsyncRequestTraits<TRequestFunc>::ResponseType;
-        using StreamingInterface = typename AsyncRequestTraits<TRequestFunc>::StreamingInterfaceType;
-
-        static_assert(std::is_base_of_v<grpc::Service, Service>);
-        static_assert(std::is_base_of_v<google::protobuf::Message, Request>);
-        static_assert(std::is_base_of_v<google::protobuf::Message, Response>);
+        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFunc);
 
     protected:
         AsyncCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service, RequestFunc requestFunc)
-            : _completionQueue(completionQueue)
+            : AsyncCallHandlerBase(completionQueue)
             , _service(service)
             , _requestFunc(requestFunc)
         { }
 
-        grpc::ServerCompletionQueue* const _completionQueue;
         Service* const _service;
         const RequestFunc _requestFunc;
     };

@@ -3,19 +3,23 @@
 
 namespace ShuHai::gRPC::Examples
 {
-    void AppRpcService::Launch(
-        grpc::ServerContext& context, const Proto::App::LaunchRequest& request, Proto::App::LaunchReply& reply)
+    Proto::App::LaunchReply AppRpcService::Launch(
+        grpc::ServerContext& context, const Proto::App::LaunchRequest& request)
     {
+        Proto::App::LaunchReply reply;
         reply.set_succeed(true);
 
         console().writeLine("AppRpcService::Launch");
+        return reply;
     }
 
-    void AppRpcService::Shutdown(
-        grpc::ServerContext& context, const Proto::App::ShutdownRequest& request, Proto::App::ShutdownReply& reply)
+    Proto::App::ShutdownReply AppRpcService::Shutdown(
+        grpc::ServerContext& context, const Proto::App::ShutdownRequest& request)
     {
+        Proto::App::ShutdownReply reply;
         reply.set_succeed(true);
 
         console().writeLine("AppRpcService::Shutdown");
+        return reply;
     }
 }

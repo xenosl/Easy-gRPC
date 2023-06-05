@@ -33,11 +33,12 @@ void handleResult(std::future<HelloReply>& f, const char* mode)
 void registerUnaryCallHandler(AsyncServer& server)
 {
     server.registerCallHandler(&Greeter::AsyncService::RequestSayHello,
-        [](grpc::ServerContext& context, const HelloRequest& request, HelloReply& reply)
+        [](grpc::ServerContext& context, const HelloRequest& request)
         {
-            // Logic and data behind the server's behavior.
+            HelloReply reply;
             std::string prefix("Hello ");
             reply.set_message(prefix + request.name());
+            return reply;
         });
 }
 
@@ -48,11 +49,11 @@ void unaryCall(AsyncClient& client)
 
     // Call and get response by callback
     client.call(
-        &Greeter::Stub::AsyncSayHello, request, [](std::future<HelloReply>&& f) { handleResult(f, "Unary-Callback"); });
+        &Greeter::Stub::AsyncSayHello, request, [](std::future<HelloReply>&& f) { handleResult(f, "Callback"); });
 
     // Call and wait for the response
-    auto replyFuture = client.call(&Greeter::Stub::AsyncSayHello, request);
-    handleResult(replyFuture, "Unary-Wait");
+    auto call = client.call(&Greeter::Stub::AsyncSayHello, request);
+    handleResult(call->getResponseFuture(), "Block");
 }
 
 int main(int argc, char* argv[])

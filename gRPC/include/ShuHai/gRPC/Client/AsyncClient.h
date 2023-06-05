@@ -1,14 +1,13 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
-#include "ShuHai/gRPC/Client/AsyncServerStreamCall.h"
-#include "ShuHai/gRPC/Client/AsyncClientStreamCall.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <grpcpp/grpcpp.h>
 
 #include <thread>
 #include <future>
+#include <unordered_set>
 #include <tuple>
 
 namespace ShuHai::gRPC::Client
@@ -36,20 +35,21 @@ namespace ShuHai::gRPC::Client
     public:
         /**
          * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
-         *  Get result by the returning std::future<ResponseType> object.
+         *  Get result by function AsyncUnaryCall<CallFunc>::getResponseFuture() of the returned call instance.
          * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
-         * \return A std::future<ResponseType> object used to obtain the rpc result.
+         * \return The call instance.
          */
         template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC,
-            std::future<typename AsyncCallTraits<CallFunc>::ResponseType>>
-        call(CallFunc asyncCall, const typename AsyncCallTraits<CallFunc>::RequestType& request,
+        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
+            CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncUnaryCall<CallFunc>;
-            auto call = new Call(std::move(context));
-            return call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue());
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
+                std::move(context), nullptr, [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            addStreamingCall(call);
+            return call;
         }
 
         /**
@@ -58,67 +58,47 @@ namespace ShuHai::gRPC::Client
          * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \param callback The callback function for rpc result notification.
+         * \return The call instance.
          */
         template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, void> call(CallFunc asyncCall,
-            const typename AsyncCallTraits<CallFunc>::RequestType& request,
-            typename AsyncUnaryCall<CallFunc>::ResultCallback callback,
+        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
+            CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
+            typename AsyncUnaryCall<CallFunc>::ResponseCallback callback,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncUnaryCall<CallFunc>;
-            auto call = new Call(std::move(context));
-            call->invoke(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(), std::move(callback));
-        }
-
-        template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::SERVER_STREAMING, std::shared_ptr<AsyncServerStreamCall<CallFunc>>>
-        call(CallFunc asyncCall, const typename AsyncCallTraits<CallFunc>::RequestType& request,
-            std::unique_ptr<grpc::ClientContext> context = nullptr)
-        {
-            using Call = AsyncServerStreamCall<CallFunc>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), request,
-                _cqWorker->queue(), [this](auto c) { removeStreamingCall(c); });
-            addStreamingCall(static_cast<AsyncCallPtr>(call));
-            return call;
-        }
-
-        template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::CLIENT_STREAMING, std::shared_ptr<AsyncClientStreamCall<CallFunc>>>
-        call(CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context = nullptr)
-        {
-            using Call = AsyncClientStreamCall<CallFunc>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context),
-                _cqWorker->queue(), [this](auto c) { removeStreamingCall(c); });
-            addStreamingCall(static_cast<AsyncCallPtr>(call));
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
+                std::move(context), std::move(callback), [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            addStreamingCall(call);
             return call;
         }
 
     private:
-        using AsyncCallPtr = std::shared_ptr<AsyncCallBase>;
+        using CallPtr = std::shared_ptr<AsyncCall>;
 
-        void addStreamingCall(AsyncCallPtr call)
+        void onCallDead(CallPtr call) { removeStreamingCall(call); }
+
+        void addStreamingCall(CallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.emplace(call);
         }
 
-        void removeStreamingCall(AsyncCallPtr call)
+        void removeStreamingCall(CallPtr call)
         {
             std::lock_guard l(_streamingCallsMutex);
             _streamingCalls.erase(call);
         }
 
+        // TODO: Use lock-free container instead.
         std::mutex _streamingCallsMutex;
-        std::unordered_set<AsyncCallPtr> _streamingCalls;
-
+        std::unordered_set<CallPtr> _streamingCalls;
 
         // Queue Worker ------------------------------------------------------------------------------------------------
     private:
-        using CqWorker = CompletionQueueWorker<grpc::CompletionQueue>;
-
         void initCompletionQueue()
         {
-            _cqWorker = std::make_unique<CqWorker>(std::make_unique<grpc::CompletionQueue>());
+            _cqWorker = std::make_unique<CompletionQueueWorker>(std::make_unique<grpc::CompletionQueue>());
 
             _cqThread = std::thread(
                 [this]()
@@ -140,7 +120,7 @@ namespace ShuHai::gRPC::Client
             _cqWorker = nullptr;
         }
 
-        std::unique_ptr<CqWorker> _cqWorker;
+        std::unique_ptr<CompletionQueueWorker> _cqWorker;
         std::thread _cqThread;
 
 

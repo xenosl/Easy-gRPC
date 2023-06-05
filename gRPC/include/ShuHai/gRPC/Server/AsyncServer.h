@@ -155,30 +155,12 @@ namespace ShuHai::gRPC::Server
          * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
-        EnableIfRpcTypeMatch<RequestFunc, RpcType::NORMAL_RPC, void> registerCallHandler(RequestFunc requestFunc,
-            typename AsyncUnaryCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
+        EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::NORMAL_RPC> registerCallHandler(RequestFunc requestFunc,
+            typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
             auto& w = _queueWorkers.at(queueIndex);
-            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
-        }
-
-        template<typename RequestFunc>
-        EnableIfRpcTypeMatch<RequestFunc, RpcType::SERVER_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
-            typename AsyncServerStreamHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
-        {
-            using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& w = _queueWorkers.at(queueIndex);
-            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
-        }
-
-        template<typename RequestFunc>
-        EnableIfRpcTypeMatch<RequestFunc, RpcType::CLIENT_STREAMING, void> registerCallHandler(RequestFunc requestFunc,
-            typename AsyncClientStreamCallHandler<RequestFunc>::ProcessFunc processFunc, size_t queueIndex = 0)
-        {
-            using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& w = _queueWorkers.at(queueIndex);
-            w->registerCallHandler(requestFunc, this->service<Service>(), std::move(processFunc));
+            w->registerCallHandler(this->service<Service>(), requestFunc, std::move(handleFunc));
         }
     };
 }
