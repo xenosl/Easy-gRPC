@@ -1,23 +1,49 @@
-- [gRPC-Quick](#grpc-quick)
-    - [Design Goals](#design-goals)
-    - [Examples](#examples)
-        - [Proto/RPC code auto-generation](#protorpc-code-auto-generation)
-        - [Simple unary call](#simple-unary-call)
+- [Easy-gRPC](#easy-grpc)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Examples](#examples)
+    - [Proto/RPC code auto-generation](#protorpc-code-auto-generation)
+    - [Simple unary call](#simple-unary-call)
 
-# gRPC-Quick
+# Easy-gRPC
 
 ## Features
 
 - Automatic code generation for *.proto files.
-- Arbitrary RPC types support.
 - Asynchronous call with only one line of code.
 - Asynchronous callback support.
+- Arbitrary RPC types support.
 
-## Installation
+## How to use
 
-## Install gRPC
-
-## Install gRPC-Quick
+- Build and install the gRPC library, see the [How to use gRPC](https://github.com/grpc/grpc/tree/master/src/cpp#to-start-using-grpc-c)
+  instructions for guidance on how to add gRPC as a dependency to current project. Not that you have to install the gRPC
+  library as CMake package to make use of it in current project.
+- After installation of the gRPC library, install current project as CMake package:
+  - Linux/Unix
+    ```shell
+    $ mkdir -p build
+    $ cd build
+    $ cmake -DCMAKE_PREFIX_PATH="your/grpc/installation/directory" -DCMAKE_INSTALL_PREFIX="your/install/destination" ..
+    $ make install
+    ```
+  - Windows, from Visual Studio command prompt
+    ```bat
+    > md build
+    > cd build
+    > cmake -G "NMake Makefiles" -DCMAKE_PREFIX_PATH="your/grpc/installation/directory" -DCMAKE_INSTALL_PREFIX="your/install/destination" ..
+    > nmake install
+    ```
+- To use the installed package in your CMake project, you have to add the gRPC library and current project installation
+  path to CMake prefix path ``CMAKE_PREFIX_PATH`` either by adding cmake options ``-DCMAKE_PREFIX_PATH`` when generating
+  the project build system or append the path by cmake code (``set(CMAKE_PREFIX_PATH ...)`` or
+  ``list(APPEND CMAKE_PREFIX_PATH ...)``).
+- Now you are ready to make use of the project dependency package in CMake canonical way:
+  ```cmake
+  find_package(EasyGRPC CONFIG REQUIRED)
+  add_executable(YourExe YourCode.cpp)
+  target_link_libraries(YourExe ShuHai::gRPC)
+  ```
 
 ## Examples
 
@@ -35,7 +61,7 @@ Here's an example of typical usage of the CMake function:
 shuhai_grpc_add_proto_targets(
         GENERATOR_TARGET HelloWorld-Proto-Gen
         LIBRARY_TARGET HelloWorld-Proto
-        PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/helloworld.proto"
+        PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/HelloWorld.proto"
         OUTPUT_DIR "${CMAKE_CURRENT_LIST_DIR}/src/Generated")
 ```
 
@@ -72,7 +98,7 @@ that the generated code is built as part of your target:
 shuhai_grpc_add_proto_targets(
         GENERATOR_TARGET HelloWorld-Proto-Gen
         LIBRARY_TARGET HelloWorld # "HelloWorld" is the name of a user target.
-        PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/helloworld.proto"
+        PROTO_FILES "${CMAKE_CURRENT_LIST_DIR}/proto/HelloWorld.proto"
         OUTPUT_DIR "${CMAKE_CURRENT_LIST_DIR}/src/Generated")
 ```
 
@@ -84,7 +110,7 @@ We define a proto service and related messages as follows:
 ```protobuf
 syntax = "proto3";
 
-package helloworld;
+package HelloWorld;
 
 service Greeter
 {
@@ -106,7 +132,7 @@ Instantiate the server class template with the above service to handle RPCs defi
 object with listening URLs or port:
 
 ```c++
-using RpcServer = ShuHai::gRPC::Server::AsyncServer<helloworld::Greeter::AsyncService>;
+using RpcServer = ShuHai::gRPC::Server::AsyncServer<HelloWorld::Greeter::AsyncService>;
 RpcServer server(12345);
 ```
 
@@ -117,11 +143,13 @@ function to the above server object. Note that:
 - The handler function is called in thread other than your current thread, you should take care of the thread safety.
 
 ```c++
-static void StartTask(const Proto::Task::StartTaskRequest& request, Proto::Task::StartTaskReply& reply)
+static HelloReply SayHello(grpc::ServerContext& context, const HelloRequest& request)
 {
+    HelloReply reply;
     // Implement business logic here.
+    return reply
 }
-server.registerCallHandler(&Service::RequestStartTask, &StartTask);
+server.registerCallHandler(&Service::RequestSayHello, &SayHello);
 ```
 
 Now start the server:
@@ -135,7 +163,7 @@ We define the client type for certain services by instantiate the client class t
 corresponding server class above:
 
 ```c++
-using RpcClient = ShuHai::gRPC::Client::AsyncClient<helloworld::Greeter::Stub>;
+using RpcClient = ShuHai::gRPC::Client::AsyncClient<HelloWorld::Greeter::Stub>;
 RpcClient client("localhost:12345");
 ```
 
@@ -149,7 +177,7 @@ request.set_name("user");
 Now we can perform the asynchronous call by a simple line of code:
 
 ```c++
-std::future<HelloReply> f = client.call(&Greeter::Stub::PrepareAsyncSayHello, request);
+std::future<HelloReply> f = client.call(&Greeter::Stub::PrepareAsyncSayHello, request)->getResponseFuture();
 // Wait for the result ready and get the result.
 auto reply = f.get();
 printf("SayHello reply: %s", reply.message().c_str());
@@ -159,7 +187,7 @@ Note that there are two ways to get the result, the one is demonstrated above, t
 callback function:
 
 ```c++
-client.call(&Greeter::Stub::PrepareAsyncSayHello, request,
+client.call(&Greeter::Stub::AsyncSayHello, request,
     [](std::future<HelloReply>&& f)
     {
         try
