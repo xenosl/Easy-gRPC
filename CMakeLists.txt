@@ -13,7 +13,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Utilities.cmake)
 
 add_subdirectory(EasyGRPC)
 
-option(SHUHAI_BUILD_DEMO "Whether to build examples." ON)
-if(${SHUHAI_BUILD_DEMO})
+option(SHUHAI_BUILD_EXAMPLES "Whether to build examples." ON)
+if(${SHUHAI_BUILD_EXAMPLES})
     add_subdirectory(examples)
 endif()
