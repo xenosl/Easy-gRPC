@@ -177,7 +177,7 @@ request.set_name("user");
 Now we can perform the asynchronous call by a simple line of code:
 
 ```c++
-std::future<HelloReply> f = client.call(&Greeter::Stub::PrepareAsyncSayHello, request)->getResponseFuture();
+std::future<HelloReply> f = client.call(&Greeter::Stub::PrepareAsyncSayHello, request)->response();
 // Wait for the result ready and get the result.
 auto reply = f.get();
 printf("SayHello reply: %s", reply.message().c_str());
