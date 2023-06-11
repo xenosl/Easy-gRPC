@@ -8,7 +8,6 @@
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
 
-#include <atomic>
 #include <future>
 #include <functional>
 #include <cassert>
@@ -17,7 +16,7 @@ namespace ShuHai::gRPC::Client
 {
     enum class AsyncUnaryResponseMode
     {
-        Block,
+        Future,
         Callback
     };
 
@@ -42,25 +41,16 @@ namespace ShuHai::gRPC::Client
             unaryCallFinish<Response>(*_stream, &_response, &this->_status, [this](bool ok) { finalizeFinished(ok); });
         }
 
-        std::future<Response> getResponseFuture()
+        std::future<Response> response()
         {
-            if (responseMode() != AsyncUnaryResponseMode::Block)
-                throw std::logic_error("The function is only available in block mode.");
+            if (responseMode() != AsyncUnaryResponseMode::Future)
+                throw std::logic_error("The function is only available in future mode.");
             return _responsePromise.get_future();
         }
 
-        /**
-         * \brief Indicates whether the rpc is returned from server, used for check validity of this->context() and
-         *  this->status().
-         * \remark When you get context or status from current call, you may want to make sure whether the current call
-         *  is returned from server (so that you can get initial and trailing metadata coming from the server or get the
-         *  right status of current rpc), the method achieved the goal.
-         */
-        [[nodiscard]] bool returned() const { return _returned.load(std::memory_order_acquire); }
-
         [[nodiscard]] AsyncUnaryResponseMode responseMode() const
         {
-            return _responseCallback ? AsyncUnaryResponseMode::Callback : AsyncUnaryResponseMode::Block;
+            return _responseCallback ? AsyncUnaryResponseMode::Callback : AsyncUnaryResponseMode::Future;
         }
 
     private:
@@ -68,8 +58,6 @@ namespace ShuHai::gRPC::Client
         {
             // ok should always be true
             assert(ok);
-
-            _returned.store(true, std::memory_order_release);
 
             try
             {
@@ -94,7 +82,5 @@ namespace ShuHai::gRPC::Client
         ResponseCallback _responseCallback;
 
         DeadCallback _deadCallback;
-
-        std::atomic<bool> _returned { false };
     };
 }

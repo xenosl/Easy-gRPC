@@ -36,7 +36,7 @@ namespace ShuHai::gRPC::Server
         // Call Handlers -----------------------------------------------------------------------------------------------
     public:
         template<typename RequestFunc>
-        EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::NORMAL_RPC> registerCallHandler(
+        EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::UnaryCall> registerCallHandler(
             typename AsyncUnaryCallHandler<RequestFunc>::Service* service, RequestFunc requestFunc,
             typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc)
         {

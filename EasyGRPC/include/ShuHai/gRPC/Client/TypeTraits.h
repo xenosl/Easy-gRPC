@@ -7,6 +7,16 @@
 #include <grpcpp/completion_queue.h>
 #include <grpcpp/client_context.h>
 
+#define SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(F) \
+    using Stub = typename AsyncCallTraits<F>::StubType; \
+    using Request = typename AsyncCallTraits<F>::RequestType; \
+    using Response = typename AsyncCallTraits<F>::ResponseType; \
+    using StreamingInterface = typename AsyncCallTraits<F>::StreamingInterfaceType; \
+\
+    static_assert(std::is_member_function_pointer_v<F>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Response>)
+
 namespace ShuHai::gRPC::Client
 {
     /**
@@ -28,43 +38,52 @@ namespace ShuHai::gRPC::Client
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncResponseReader<Response>;
 
-        static constexpr RpcType RpcType = RpcType::NORMAL_RPC;
+        static constexpr RpcType RpcType = RpcType::UnaryCall;
     };
 
     template<typename Stub, typename Request, typename Response>
-    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncWriter<Request>> (Stub::*)(
-        grpc::ClientContext*, Response*, grpc::CompletionQueue*, void*)>
+    using AsyncClientStreamFunc = std::unique_ptr<grpc::ClientAsyncWriter<Request>> (Stub::*)(
+        grpc::ClientContext*, Response*, grpc::CompletionQueue*, void*);
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<AsyncClientStreamFunc<Stub, Request, Response>>
     {
         using StubType = Stub;
         using RequestType = Request;
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncWriter<Request>;
 
-        static constexpr RpcType RpcType = RpcType::CLIENT_STREAMING;
+        static constexpr RpcType RpcType = RpcType::ClientStream;
     };
 
     template<typename Stub, typename Request, typename Response>
-    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncReader<Response>> (Stub::*)(
-        grpc::ClientContext*, const Request&, grpc::CompletionQueue*, void*)>
+    using AsyncServerStreamFunc = std::unique_ptr<grpc::ClientAsyncReader<Response>> (Stub::*)(
+        grpc::ClientContext*, const Request&, grpc::CompletionQueue*, void*);
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<AsyncServerStreamFunc<Stub, Request, Response>>
     {
         using StubType = Stub;
         using RequestType = Request;
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncReader<Response>;
 
-        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
+        static constexpr RpcType RpcType = RpcType::ServerStream;
     };
 
     template<typename Stub, typename Request, typename Response>
-    struct AsyncCallTraits<std::unique_ptr<grpc::ClientAsyncReaderWriter<Request, Response>> (Stub::*)(
-        grpc::ClientContext*, grpc::CompletionQueue*, void*)>
+    using AsyncBidiStreamFunc = std::unique_ptr<grpc::ClientAsyncReaderWriter<Request, Response>> (Stub::*)(
+        grpc::ClientContext*, grpc::CompletionQueue*, void*);
+
+    template<typename Stub, typename Request, typename Response>
+    struct AsyncCallTraits<AsyncBidiStreamFunc<Stub, Request, Response>>
     {
         using StubType = Stub;
         using RequestType = Request;
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncReaderWriter<Request, Response>;
 
-        static constexpr RpcType RpcType = RpcType::BIDI_STREAMING;
+        static constexpr RpcType RpcType = RpcType::BidiStream;
     };
 
     template<typename F>
@@ -80,7 +99,7 @@ namespace ShuHai::gRPC::Client
     using StreamingInterfaceTypeOf = typename AsyncCallTraits<F>::StreamingInterfaceType;
 
     template<typename F>
-    static constexpr RpcType rpcTypeOf()
+    constexpr RpcType rpcTypeOf()
     {
         return AsyncCallTraits<F>::RpcType;
     }
@@ -91,14 +110,3 @@ namespace ShuHai::gRPC::Client
     template<typename EnabledType, typename F, RpcType... RpcTypes>
     using EnableIfAnyRpcTypeMatch = std::enable_if_t<((rpcTypeOf<F>() == RpcTypes) || ...), EnabledType>;
 }
-
-#define SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(F) \
-    using Stub = typename AsyncCallTraits<F>::StubType; \
-    using Request = typename AsyncCallTraits<F>::RequestType; \
-    using Response = typename AsyncCallTraits<F>::ResponseType; \
-    using StreamingInterface = typename AsyncCallTraits<F>::StreamingInterfaceType; \
-    static constexpr gRPC::RpcType RpcType = AsyncCallTraits<F>::RpcType; \
-\
-    static_assert(std::is_member_function_pointer_v<F>); \
-    static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \
-    static_assert(std::is_base_of_v<google::protobuf::Message, Response>)

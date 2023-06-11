@@ -53,7 +53,7 @@ void unaryCall(AsyncClient& client)
 
     // Call and wait for the response
     auto call = client.call(&Greeter::Stub::AsyncSayHello, request);
-    handleResult(call->getResponseFuture(), "Block");
+    handleResult(call->response(), "Block");
 }
 
 int main(int argc, char* argv[])

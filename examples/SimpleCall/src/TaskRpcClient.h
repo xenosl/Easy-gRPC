@@ -18,7 +18,7 @@ namespace ShuHai::gRPC::Examples
 
         auto GetTarget(const Proto::Task::GetTargetRequest& request)
         {
-            return _client.call(&Proto::Task::Rpc::Stub::AsyncGetTarget, request)->getResponseFuture();
+            return _client.call(&Proto::Task::Rpc::Stub::AsyncGetTarget, request)->response();
         }
 
         void GetTarget(const Proto::Task::GetTargetRequest& request,

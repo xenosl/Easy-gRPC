@@ -27,7 +27,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncResponseWriter<Response>;
 
-        static constexpr RpcType RpcType = RpcType::NORMAL_RPC;
+        static constexpr RpcType RpcType = RpcType::UnaryCall;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -42,7 +42,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncReader<Response, Request>;
 
-        static constexpr RpcType RpcType = RpcType::CLIENT_STREAMING;
+        static constexpr RpcType RpcType = RpcType::ClientStream;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -57,7 +57,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncWriter<Response>;
 
-        static constexpr RpcType RpcType = RpcType::SERVER_STREAMING;
+        static constexpr RpcType RpcType = RpcType::ServerStream;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -72,7 +72,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncReaderWriter<Response, Request>;
 
-        static constexpr RpcType RpcType = RpcType::BIDI_STREAMING;
+        static constexpr RpcType RpcType = RpcType::BidiStream;
     };
 
     template<typename F>

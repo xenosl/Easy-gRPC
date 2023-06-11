@@ -155,7 +155,7 @@ namespace ShuHai::gRPC::Server
          * \param processFunc The function actually take care of the rpc call.
          */
         template<typename RequestFunc>
-        EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::NORMAL_RPC> registerCallHandler(RequestFunc requestFunc,
+        EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::UnaryCall> registerCallHandler(RequestFunc requestFunc,
             typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;

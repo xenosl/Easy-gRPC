@@ -67,6 +67,13 @@ namespace ShuHai::gRPC::Client
     };
 
     template<typename Request>
+    void clientStreamWrite(grpc::ClientAsyncWriter<Request>& stream, const Request& request, grpc::WriteOptions options,
+        std::function<void(bool)> finalizer = nullptr)
+    {
+        (new ClientStreamWriteAction<Request>(stream, std::move(finalizer)))->perform(request, options);
+    }
+
+    template<typename Request>
     class ClientStreamWritesDoneAction : public ClientStreamAction<Request>
     {
     public:
@@ -80,6 +87,12 @@ namespace ShuHai::gRPC::Client
     };
 
     template<typename Request>
+    void clientStreamWritesDone(grpc::ClientAsyncWriter<Request>& stream, std::function<void(bool)> finalizer = nullptr)
+    {
+        (new ClientStreamWritesDoneAction<Request>(stream, std::move(finalizer)))->perform();
+    }
+
+    template<typename Request>
     class ClientStreamFinishAction : public ClientStreamAction<Request>
     {
     public:
@@ -91,6 +104,13 @@ namespace ShuHai::gRPC::Client
 
         void perform(grpc::Status* status) { this->_stream.Finish(status, this); }
     };
+
+    template<typename Request>
+    void clientStreamFinish(
+        grpc::ClientAsyncWriter<Request>& stream, grpc::Status* status, std::function<void(bool)> finalizer = nullptr)
+    {
+        (new ClientStreamFinishAction<Request>(stream, std::move(finalizer)))->perform(status);
+    }
 
     /**
      * \brief Base class for async-actions on client-side of server streaming rpc.

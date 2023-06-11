@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
+#include "ShuHai/gRPC/Client/AsyncClientStream.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <grpcpp/grpcpp.h>
@@ -35,13 +36,13 @@ namespace ShuHai::gRPC::Client
     public:
         /**
          * \brief Executes certain rpc via the specified generated function (which located in *.grpc.pb.h files) Stub::Async<RpcName>.
-         *  Get result by function AsyncUnaryCall<CallFunc>::getResponseFuture() of the returned call instance.
+         *  Get result by function AsyncUnaryCall<CallFunc>::response() of the returned call instance.
          * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \return The call instance.
          */
         template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
+        EnableIfRpcTypeMatch<CallFunc, RpcType::UnaryCall, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
             CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
@@ -61,7 +62,7 @@ namespace ShuHai::gRPC::Client
          * \return The call instance.
          */
         template<typename CallFunc>
-        EnableIfRpcTypeMatch<CallFunc, RpcType::NORMAL_RPC, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
+        EnableIfRpcTypeMatch<CallFunc, RpcType::UnaryCall, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
             CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
             typename AsyncUnaryCall<CallFunc>::ResponseCallback callback,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
@@ -69,6 +70,17 @@ namespace ShuHai::gRPC::Client
             using Call = AsyncUnaryCall<CallFunc>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
                 std::move(context), std::move(callback), [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            addStreamingCall(call);
+            return call;
+        }
+
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::ClientStream, std::shared_ptr<AsyncClientStream<CallFunc>>> call(
+            CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context = nullptr)
+        {
+            using Call = AsyncClientStream<CallFunc>;
+            auto call =
+                std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), _cqWorker->queue());
             addStreamingCall(call);
             return call;
         }
