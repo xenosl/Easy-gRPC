@@ -72,7 +72,7 @@ namespace ShuHai::gRPC
     private:
         static void finalizeResult(void* tag, bool ok)
         {
-            auto action = static_cast<AsyncAction*>(tag);
+            auto action = static_cast<IAsyncAction*>(tag);
             action->finalizeResult(ok);
             delete action;
         }

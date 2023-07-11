@@ -1,8 +1,7 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/AsyncCallHandlerBase.h"
-#include "ShuHai/gRPC/Server/ServiceRequestAction.h"
-#include "ShuHai/gRPC/Server/StreamActions.h"
+#include "ShuHai/gRPC/Server/AsyncCallHandler.h"
+#include "ShuHai/gRPC/AsyncAction.h"
 
 #include <atomic>
 
@@ -31,19 +30,67 @@ namespace ShuHai::gRPC::Server
                 : stream(&context)
             { }
 
-            ~Call() { }
-
             grpc::ServerContext context;
             StreamingInterface stream;
             Request request;
         };
 
+        class HandlerAction : public IAsyncAction
+        {
+        public:
+            HandlerAction(AsyncUnaryCallHandler* handler, Call* call)
+                : _handler(handler)
+                , _call(call)
+            { }
+
+        protected:
+            AsyncUnaryCallHandler* const _handler;
+            Call* const _call;
+        };
+
+        class ServiceRequestAction : public HandlerAction
+        {
+        public:
+            ServiceRequestAction(AsyncUnaryCallHandler* handler, Call* call)
+                : HandlerAction(handler, call)
+            { }
+
+            void perform() override
+            {
+                auto handler = this->_handler;
+                auto call = this->_call;
+                auto service = handler->_service;
+                auto func = handler->_requestFunc;
+                auto cq = handler->_completionQueue;
+                (service->*func)(&call->context, &call->request, &call->stream, cq, cq, this);
+            }
+
+            void finalizeResult(bool ok) override { this->_handler->finalizeCallRequest(this->_call, ok); }
+        };
+
+        class UnaryCallFinishAction : public HandlerAction
+        {
+        public:
+            explicit UnaryCallFinishAction(
+                AsyncUnaryCallHandler* handler, Call* call, const Response& response, const grpc::Status& status)
+                : HandlerAction(handler, call)
+                , _response(response)
+                , _status(status)
+            { }
+
+            void perform() override { this->_call->stream.Finish(_response, _status, this); }
+
+            void finalizeResult(bool ok) override { this->_handler->finalizeCallFinish(this->_call, ok); }
+
+        private:
+            const Response& _response;
+            const grpc::Status& _status;
+        };
+
         void newCallRequest()
         {
             auto call = new Call();
-            auto cq = this->_completionQueue;
-            serviceRequest(this->_service, this->_requestFunc, &call->context, &call->request, &call->stream, cq, cq,
-                [this, call](bool ok) { finalizeCallRequest(call, ok); });
+            performNewAction<ServiceRequestAction>(this, call);
         }
 
         void finalizeCallRequest(Call* call, bool ok)
@@ -56,8 +103,7 @@ namespace ShuHai::gRPC::Server
                 newCallRequest();
 
                 auto response = _handleFunc(call->context, call->request);
-                unaryCallFinish<Response>(
-                    call->stream, response, grpc::Status::OK, [this, call](bool ok) { finalizeCallFinish(call, ok); });
+                performNewAction<UnaryCallFinishAction>(this, call, response, grpc::Status::OK);
             }
             else
             {

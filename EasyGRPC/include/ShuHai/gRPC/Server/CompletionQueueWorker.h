@@ -14,7 +14,7 @@ namespace ShuHai::gRPC::Server
         explicit CompletionQueueWorker(std::unique_ptr<grpc::ServerCompletionQueue> queue)
             : gRPC::CompletionQueueWorker(std::move(queue))
         {
-            _queue = dynamic_cast<grpc::ServerCompletionQueue*>(this->queue());
+            _queue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::CompletionQueueWorker::queue());
         }
 
         ~CompletionQueueWorker() override
@@ -28,6 +28,8 @@ namespace ShuHai::gRPC::Server
             gRPC::CompletionQueueWorker::shutdown();
             shutdownCallHandlers();
         }
+
+        [[nodiscard]] grpc::ServerCompletionQueue* queue() const { return _queue; }
 
     private:
         grpc::ServerCompletionQueue* _queue {};
