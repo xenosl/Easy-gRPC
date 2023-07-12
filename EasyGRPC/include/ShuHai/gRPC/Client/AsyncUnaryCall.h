@@ -3,7 +3,6 @@
 #include "ShuHai/gRPC/Client/AsyncCall.h"
 #include "ShuHai/gRPC/Client/AsyncCallError.h"
 #include "ShuHai/gRPC/Client/AsyncCallAction.h"
-#include "ShuHai/gRPC/Client/StreamActions.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
@@ -38,7 +37,7 @@ namespace ShuHai::gRPC::Client
             , _deadCallback(std::move(deadCallback))
         {
             _stream = (stub->*func)(this->_context.get(), request, cq);
-            unaryCallFinish<Response>(*_stream, &_response, &this->_status, [this](bool ok) { finalizeFinished(ok); });
+            performNewAction<CallFinishAction>(this, &_response, &this->_status);
         }
 
         std::future<Response> response()
@@ -54,6 +53,35 @@ namespace ShuHai::gRPC::Client
         }
 
     private:
+        class CallAction : public IAsyncAction
+        {
+        public:
+            explicit CallAction(AsyncUnaryCall* call)
+                : _call(call)
+            { }
+
+        protected:
+            AsyncUnaryCall* const _call;
+        };
+
+        class CallFinishAction : public CallAction
+        {
+        public:
+            CallFinishAction(AsyncUnaryCall* call, Response* response, grpc::Status* status)
+                : CallAction(call)
+                , _response(response)
+                , _status(status)
+            { }
+
+            void perform() override { this->_call->_stream->Finish(_response, _status, this); }
+
+            void finalizeResult(bool ok) override { this->_call->finalizeFinished(ok); }
+
+        private:
+            Response* const _response;
+            grpc::Status* const _status;
+        };
+
         void finalizeFinished(bool ok)
         {
             // ok should always be true

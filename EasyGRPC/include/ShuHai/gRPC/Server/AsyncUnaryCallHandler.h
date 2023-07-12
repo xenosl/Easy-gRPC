@@ -35,10 +35,10 @@ namespace ShuHai::gRPC::Server
             Request request;
         };
 
-        class HandlerAction : public IAsyncAction
+        class CallHandlerAction : public IAsyncAction
         {
         public:
-            HandlerAction(AsyncUnaryCallHandler* handler, Call* call)
+            CallHandlerAction(AsyncUnaryCallHandler* handler, Call* call)
                 : _handler(handler)
                 , _call(call)
             { }
@@ -48,11 +48,11 @@ namespace ShuHai::gRPC::Server
             Call* const _call;
         };
 
-        class ServiceRequestAction : public HandlerAction
+        class ServiceRequestAction : public CallHandlerAction
         {
         public:
             ServiceRequestAction(AsyncUnaryCallHandler* handler, Call* call)
-                : HandlerAction(handler, call)
+                : CallHandlerAction(handler, call)
             { }
 
             void perform() override
@@ -68,12 +68,12 @@ namespace ShuHai::gRPC::Server
             void finalizeResult(bool ok) override { this->_handler->finalizeCallRequest(this->_call, ok); }
         };
 
-        class UnaryCallFinishAction : public HandlerAction
+        class CallFinishAction : public CallHandlerAction
         {
         public:
-            explicit UnaryCallFinishAction(
+            explicit CallFinishAction(
                 AsyncUnaryCallHandler* handler, Call* call, const Response& response, const grpc::Status& status)
-                : HandlerAction(handler, call)
+                : CallHandlerAction(handler, call)
                 , _response(response)
                 , _status(status)
             { }
@@ -103,7 +103,7 @@ namespace ShuHai::gRPC::Server
                 newCallRequest();
 
                 auto response = _handleFunc(call->context, call->request);
-                performNewAction<UnaryCallFinishAction>(this, call, response, grpc::Status::OK);
+                performNewAction<CallFinishAction>(this, call, response, grpc::Status::OK);
             }
             else
             {
