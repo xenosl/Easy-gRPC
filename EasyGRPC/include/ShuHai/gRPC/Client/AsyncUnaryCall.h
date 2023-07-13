@@ -37,7 +37,7 @@ namespace ShuHai::gRPC::Client
             , _deadCallback(std::move(deadCallback))
         {
             _stream = (stub->*func)(this->_context.get(), request, cq);
-            performNewAction<CallFinishAction>(this, &_response, &this->_status);
+            (new CallFinishAction(this))->perform(&_response, &this->_status);
         }
 
         std::future<Response> response()
@@ -67,19 +67,16 @@ namespace ShuHai::gRPC::Client
         class CallFinishAction : public CallAction
         {
         public:
-            CallFinishAction(AsyncUnaryCall* call, Response* response, grpc::Status* status)
+            explicit CallFinishAction(AsyncUnaryCall* call)
                 : CallAction(call)
-                , _response(response)
-                , _status(status)
             { }
 
-            void perform() override { this->_call->_stream->Finish(_response, _status, this); }
+            void perform(Response* response, grpc::Status* status)
+            {
+                this->_call->_stream->Finish(response, status, this);
+            }
 
             void finalizeResult(bool ok) override { this->_call->finalizeFinished(ok); }
-
-        private:
-            Response* const _response;
-            grpc::Status* const _status;
         };
 
         void finalizeFinished(bool ok)

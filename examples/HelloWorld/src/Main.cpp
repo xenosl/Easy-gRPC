@@ -13,7 +13,7 @@ using namespace HelloWorld;
 using AsyncServer = Server::AsyncServer<Greeter::AsyncService>;
 using AsyncClient = Client::AsyncClient<Greeter::Stub>;
 
-void handleResult(std::future<HelloReply>& f, const char* mode)
+void handleResult(std::future<HelloReply>&& f, const char* mode)
 {
     try
     {
@@ -48,8 +48,8 @@ void unaryCall(AsyncClient& client)
     request.set_name("user");
 
     // Call and get response by callback
-    client.call(
-        &Greeter::Stub::AsyncSayHello, request, [](std::future<HelloReply>&& f) { handleResult(f, "Callback"); });
+    client.call(&Greeter::Stub::AsyncSayHello, request,
+        [](std::future<HelloReply>&& f) { handleResult(std::move(f), "Callback"); });
 
     // Call and wait for the response
     auto call = client.call(&Greeter::Stub::AsyncSayHello, request);

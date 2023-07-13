@@ -55,7 +55,7 @@ namespace ShuHai::gRPC::Server
                 : CallHandlerAction(handler, call)
             { }
 
-            void perform() override
+            void perform()
             {
                 auto handler = this->_handler;
                 auto call = this->_call;
@@ -71,26 +71,22 @@ namespace ShuHai::gRPC::Server
         class CallFinishAction : public CallHandlerAction
         {
         public:
-            explicit CallFinishAction(
-                AsyncUnaryCallHandler* handler, Call* call, const Response& response, const grpc::Status& status)
+            explicit CallFinishAction(AsyncUnaryCallHandler* handler, Call* call)
                 : CallHandlerAction(handler, call)
-                , _response(response)
-                , _status(status)
             { }
 
-            void perform() override { this->_call->stream.Finish(_response, _status, this); }
+            void perform(const Response& response, const grpc::Status& status)
+            {
+                this->_call->stream.Finish(response, status, this);
+            }
 
             void finalizeResult(bool ok) override { this->_handler->finalizeCallFinish(this->_call, ok); }
-
-        private:
-            const Response& _response;
-            const grpc::Status& _status;
         };
 
         void newCallRequest()
         {
             auto call = new Call();
-            performNewAction<ServiceRequestAction>(this, call);
+            (new ServiceRequestAction(this, call))->perform();
         }
 
         void finalizeCallRequest(Call* call, bool ok)
@@ -103,7 +99,7 @@ namespace ShuHai::gRPC::Server
                 newCallRequest();
 
                 auto response = _handleFunc(call->context, call->request);
-                performNewAction<CallFinishAction>(this, call, response, grpc::Status::OK);
+                (new CallFinishAction(this, call))->perform(response, grpc::Status::OK);
             }
             else
             {
