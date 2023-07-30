@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Server/AsyncCallHandler.h"
-#include "ShuHai/gRPC/AsyncAction.h"
+#include "ShuHai/gRPC/IAsyncAction.h"
 
 #include <atomic>
 

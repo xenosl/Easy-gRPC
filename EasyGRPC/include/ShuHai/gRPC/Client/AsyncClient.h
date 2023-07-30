@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
+#include "ShuHai/gRPC/Client/AsyncClientStreamCall.h"
 #include "ShuHai/gRPC/CompletionQueueWorker.h"
 
 #include <grpcpp/grpcpp.h>
@@ -69,6 +70,17 @@ namespace ShuHai::gRPC::Client
             using Call = AsyncUnaryCall<CallFunc>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
                 std::move(context), std::move(callback), [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            addStreamingCall(call);
+            return call;
+        }
+
+        template<typename CallFunc>
+        EnableIfRpcTypeMatch<CallFunc, RpcType::ClientStream, std::shared_ptr<AsyncClientStreamCall<CallFunc>>> call(
+            CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context = nullptr)
+        {
+            using Call = AsyncClientStreamCall<CallFunc>;
+            auto call =
+                std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), _cqWorker->queue());
             addStreamingCall(call);
             return call;
         }

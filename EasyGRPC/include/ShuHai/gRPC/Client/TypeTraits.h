@@ -7,16 +7,6 @@
 #include <grpcpp/completion_queue.h>
 #include <grpcpp/client_context.h>
 
-#define SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(F) \
-    using Stub = typename AsyncCallTraits<F>::StubType; \
-    using Request = typename AsyncCallTraits<F>::RequestType; \
-    using Response = typename AsyncCallTraits<F>::ResponseType; \
-    using StreamingInterface = typename AsyncCallTraits<F>::StreamingInterfaceType; \
-\
-    static_assert(std::is_member_function_pointer_v<F>); \
-    static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \
-    static_assert(std::is_base_of_v<google::protobuf::Message, Response>)
-
 namespace ShuHai::gRPC::Client
 {
     /**
@@ -110,3 +100,13 @@ namespace ShuHai::gRPC::Client
     template<typename EnabledType, typename F, RpcType... RpcTypes>
     using EnableIfAnyRpcTypeMatch = std::enable_if_t<((rpcTypeOf<F>() == RpcTypes) || ...), EnabledType>;
 }
+
+#define SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(F) \
+    using Stub = typename AsyncCallTraits<F>::StubType; \
+    using Request = typename AsyncCallTraits<F>::RequestType; \
+    using Response = typename AsyncCallTraits<F>::ResponseType; \
+    using StreamingInterface = typename AsyncCallTraits<F>::StreamingInterfaceType; \
+\
+    static_assert(std::is_member_function_pointer_v<F>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \
+    static_assert(std::is_base_of_v<google::protobuf::Message, Response>)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/AsyncAction.h"
+#include "ShuHai/gRPC/IAsyncAction.h"
 
 #include <grpcpp/completion_queue.h>
 
@@ -12,7 +12,7 @@ namespace ShuHai::gRPC
 {
     /**
      * \brief grpc::CompletionQueue wrapper for its polling and event handling.
-     *  Note: The class con only handle events tagged by CompletionQueueTag.
+     *  Note: The class con only handle events tagged by IAsyncAction.
      */
     class CompletionQueueWorker
     {
@@ -62,19 +62,18 @@ namespace ShuHai::gRPC
 
         [[nodiscard]] grpc::CompletionQueue* queue() const { return _queue.get(); }
 
-    protected:
-        void waitForShutdown()
-        {
-            while (_pollStatus.load(std::memory_order_acquire) != grpc::CompletionQueue::SHUTDOWN)
-                continue;
-        }
-
     private:
         static void finalizeResult(void* tag, bool ok)
         {
             auto action = static_cast<IAsyncAction*>(tag);
             action->finalizeResult(ok);
             delete action;
+        }
+
+        void waitForShutdown()
+        {
+            while (_pollStatus.load(std::memory_order_acquire) != grpc::CompletionQueue::SHUTDOWN)
+                continue;
         }
 
         std::unique_ptr<grpc::CompletionQueue> _queue;

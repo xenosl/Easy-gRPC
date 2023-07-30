@@ -17,11 +17,7 @@ namespace ShuHai::gRPC::Server
             _queue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::CompletionQueueWorker::queue());
         }
 
-        ~CompletionQueueWorker() override
-        {
-            waitForShutdown();
-            deleteCallHandlers();
-        }
+        ~CompletionQueueWorker() override { deleteCallHandlers(); }
 
         void shutdown() override
         {

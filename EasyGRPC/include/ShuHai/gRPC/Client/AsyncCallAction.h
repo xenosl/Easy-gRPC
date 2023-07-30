@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/TypeTraits.h"
-#include "ShuHai/gRPC/AsyncAction.h"
+#include "ShuHai/gRPC/IAsyncAction.h"
 
 namespace ShuHai::gRPC::Client
 {
