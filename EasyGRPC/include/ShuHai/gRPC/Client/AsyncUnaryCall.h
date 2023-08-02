@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Client/AsyncCall.h"
 #include "ShuHai/gRPC/Client/AsyncCallError.h"
-#include "ShuHai/gRPC/Client/AsyncCallAction.h"
+#include "ShuHai/gRPC/Client/TypeTraits.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
@@ -56,12 +56,12 @@ namespace ShuHai::gRPC::Client
         class CallAction : public IAsyncAction
         {
         public:
-            explicit CallAction(AsyncUnaryCall* call)
-                : _call(call)
+            explicit CallAction(AsyncUnaryCall* owner)
+                : _owner(owner)
             { }
 
         protected:
-            AsyncUnaryCall* const _call;
+            AsyncUnaryCall* const _owner;
         };
 
         class CallFinishAction : public CallAction
@@ -73,10 +73,10 @@ namespace ShuHai::gRPC::Client
 
             void perform(Response* response, grpc::Status* status)
             {
-                this->_call->_stream->Finish(response, status, this);
+                this->_owner->_stream->Finish(response, status, this);
             }
 
-            void finalizeResult(bool ok) override { this->_call->finalizeFinished(ok); }
+            void finalizeResult(bool ok) override { this->_owner->finalizeFinished(ok); }
         };
 
         void finalizeFinished(bool ok)
