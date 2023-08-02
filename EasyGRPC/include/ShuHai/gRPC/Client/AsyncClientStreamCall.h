@@ -56,13 +56,13 @@ namespace ShuHai::gRPC::Client
                 return (stub->*func)(context, response, cq, this);
             }
 
-            void finalizeResult(bool ok) override { _owner->makeStreamReady(); }
+            void finalizeResult(bool ok) override { _owner->markRequestStreamReady(); }
 
         private:
             AsyncClientStreamCall* const _owner;
         };
 
-        void makeStreamReady() { _requestStreamPromise.set_value(_requestStream); }
+        void markRequestStreamReady() { _requestStreamPromise.set_value(_requestStream); }
 
         void onRequestStreamFinish() { _responsePromise.set_value(_response); }
 

@@ -3,8 +3,6 @@
 #include "ShuHai/gRPC/Server/AsyncCallHandler.h"
 #include "ShuHai/gRPC/IAsyncAction.h"
 
-#include <atomic>
-
 namespace ShuHai::gRPC::Server
 {
     template<typename RequestFunc>
@@ -15,8 +13,8 @@ namespace ShuHai::gRPC::Server
 
         using HandleFunc = std::function<Response(grpc::ServerContext&, const Request&)>;
 
-        explicit AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service,
-            RequestFunc requestFunc, HandleFunc handleFunc)
+        AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service, RequestFunc requestFunc,
+            HandleFunc handleFunc)
             : AsyncCallHandler<RequestFunc>(completionQueue, service, requestFunc)
             , _handleFunc(std::move(handleFunc))
         {

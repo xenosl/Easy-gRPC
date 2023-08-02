@@ -72,69 +72,74 @@ namespace ShuHai::gRPC::Client
     private:
         using State = Internal::AsyncClientStreamWriterState;
 
-        class AsyncAction : public IAsyncAction
+        class StreamAction : public AsyncAction<bool>
         {
         public:
-            explicit AsyncAction(AsyncClientStreamWriter* owner)
+            explicit StreamAction(AsyncClientStreamWriter* owner)
                 : _owner(owner)
             { }
 
-            virtual void perform() = 0;
-
-            std::future<bool> getOkFuture() { return _okPromise.get_future(); }
-
-            void setResult(bool ok) { _okPromise.set_value(ok); }
-
-            template<typename T, typename... Args>
-            void setException(Args... args)
+            void perform()
             {
-                try
+                std::lock_guard slg(_owner->_stateMutex);
+                assert(_owner->_state == State::Ready);
+                _owner->_state = State::Processing;
+                performImpl();
+            }
+
+            void finalizeResult(bool ok) final
+            {
                 {
-                    throw T(std::forward<Args>(args)...);
+                    std::lock_guard slg(_owner->_stateMutex);
+                    assert(_owner->_state == State::Processing);
+                    setResult(ok);
+                    _owner->_state = State::Ready;
                 }
-                catch (...)
-                {
-                    _okPromise.set_exception(std::current_exception());
-                }
+                finalizeResultImpl(ok);
             }
 
         protected:
+            virtual void performImpl() = 0;
+
+            virtual void finalizeResultImpl(bool ok) = 0;
+
             AsyncClientStreamWriter* const _owner;
-            std::promise<bool> _okPromise;
         };
 
-        class WriteAction : public AsyncAction
+        class WriteAction : public StreamAction
         {
         public:
             WriteAction(AsyncClientStreamWriter* owner, Request message, grpc::WriteOptions options)
-                : AsyncAction(owner)
+                : StreamAction(owner)
                 , _message(std::move(message))
                 , _options(options)
             { }
 
-            void perform() override { this->_owner->_stream.Write(_message, _options, this); }
-
-            void finalizeResult(bool ok) override { this->_owner->finalizeWrite(this, ok); }
-
             [[nodiscard]] const Request& message() const { return _message; }
 
             [[nodiscard]] const grpc::WriteOptions& options() { return _options; }
+
+        protected:
+            void performImpl() override { this->_owner->_stream.Write(_message, _options, this); }
+
+            void finalizeResultImpl(bool ok) override { this->_owner->finalizeWrite(this, ok); }
 
         private:
             Request _message;
             grpc::WriteOptions _options;
         };
 
-        class FinishAction : public AsyncAction
+        class FinishAction : public StreamAction
         {
         public:
             explicit FinishAction(AsyncClientStreamWriter* owner)
-                : AsyncAction(owner)
+                : StreamAction(owner)
             { }
 
-            void perform() override { this->_owner->_stream.Finish(&this->_owner->_status, this); }
+        protected:
+            void performImpl() override { this->_owner->_stream.Finish(&this->_owner->_status, this); }
 
-            void finalizeResult(bool ok) override { this->_owner->finalizeFinish(this, ok); }
+            void finalizeResultImpl(bool ok) override { this->_owner->finalizeFinish(this, ok); }
         };
 
         bool tryPerformAction()
@@ -151,15 +156,12 @@ namespace ShuHai::gRPC::Client
             return tryPerformAction(action);
         }
 
-        template<typename T>
-        bool tryPerformAction(T* action)
+        bool tryPerformAction(StreamAction* action)
         {
-            static_assert(std::is_base_of_v<AsyncAction, T>);
-
             switch (_state)
             {
             case State::Ready:
-                performAction(action);
+                action->perform();
                 return true;
             case State::Finished:
                 action->template setException<InvalidStreamingAction>(
@@ -174,30 +176,11 @@ namespace ShuHai::gRPC::Client
             }
         }
 
-        template<typename T>
-        void performAction(T* action)
-        {
-            static_assert(std::is_base_of_v<AsyncAction, T>);
-
-            std::lock_guard slg(_stateMutex);
-
-            action->perform(); // No vtable searching when T is a derived type.
-            _state = State::Processing;
-        }
-
         void finalizeWrite(WriteAction* action, bool ok)
         {
             // ok means that the data/metadata/status/etc is going to go to the wire.
             // If it is false, it not going to the wire because the call is already dead (i.e., canceled,
             // deadline expired, other side dropped the channel, etc).
-            {
-                std::lock_guard slg(_stateMutex);
-
-                assert(_state == State::Processing);
-
-                action->setResult(ok);
-                _state = State::Ready;
-            }
 
             if (ok)
             {
@@ -224,7 +207,7 @@ namespace ShuHai::gRPC::Client
                             }
                             else
                             {
-                                performAction(writeAction);
+                                writeAction->perform();
                             }
                         }
                     }
@@ -236,7 +219,7 @@ namespace ShuHai::gRPC::Client
                         }
                         else
                         {
-                            performAction(finishAction);
+                            finishAction->perform();
                             finishPerformed = true;
                         }
                     }
@@ -253,26 +236,24 @@ namespace ShuHai::gRPC::Client
             // ok should always be true
             assert(ok);
 
-            action->setResult(ok);
-
             _finishCallback();
         }
 
         template<typename T, typename... Args>
         std::future<bool> newAction(Args... args)
         {
-            static_assert(std::is_base_of_v<AsyncAction, T>);
+            static_assert(std::is_base_of_v<StreamAction, T>);
 
             auto action = new T(std::forward<Args>(args)...);
-            auto okFuture = action->getOkFuture();
+            auto result = action->result();
             {
                 std::lock_guard l(_actionsMutex);
                 _actions.emplace(action);
             }
-            return okFuture;
+            return result;
         }
 
-        AsyncAction* popAction()
+        StreamAction* popAction()
         {
             auto action = _actions.front();
             _actions.pop();
@@ -283,6 +264,6 @@ namespace ShuHai::gRPC::Client
         State _state { State::Ready };
 
         std::mutex _actionsMutex;
-        std::queue<AsyncAction*> _actions;
+        std::queue<StreamAction*> _actions;
     };
 }
