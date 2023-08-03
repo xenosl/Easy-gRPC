@@ -17,3 +17,8 @@ option(SHUHAI_BUILD_EXAMPLES "Whether to build examples." ON)
 if(${SHUHAI_BUILD_EXAMPLES})
     add_subdirectory(examples)
 endif()
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+endif()
