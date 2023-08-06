@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShuHai/gRPC/Client/TypeTraits.h"
-#include "ShuHai/gRPC/IAsyncAction.h"
+#include "ShuHai/gRPC/AsyncAction.h"
 #include "ShuHai/gRPC/StreamingError.h"
 
 #include <queue>
@@ -34,17 +34,17 @@ namespace ShuHai::gRPC::Client
         friend class AsyncClientStreamCall<CallFunc>;
 
         AsyncClientStreamWriter(grpc::CompletionQueue* cq, StreamingInterface& stream, grpc::Status& status,
-            std::function<void()> finishCallback)
+            std::function<void()> onFinished)
             : _cq(cq)
             , _stream(stream)
             , _status(status)
-            , _finishCallback(std::move(finishCallback))
+            , _onFinished(std::move(onFinished))
         { }
 
         grpc::CompletionQueue* const _cq;
         StreamingInterface& _stream;
         grpc::Status& _status;
-        std::function<void()> _finishCallback;
+        std::function<void()> _onFinished;
 
         // Actions -----------------------------------------------------------------------------------------------------
     public:
@@ -236,7 +236,7 @@ namespace ShuHai::gRPC::Client
             // ok should always be true
             assert(ok);
 
-            _finishCallback();
+            _onFinished();
         }
 
         template<typename T, typename... Args>

@@ -13,12 +13,24 @@ using namespace ShuHai::gRPC::Examples::Streaming;
 using AsyncServer = Server::AsyncServer<Application::AsyncService>;
 using AsyncClient = Client::AsyncClient<Application::Stub>;
 
-void registerClientStreamHandler(AsyncServer& server) { }
+using RequestFunc = decltype(&Application::AsyncService::RequestSetFeatures);
+
+SetFeaturesReply handleClientStream(
+    grpc::ServerContext& context, Server::AsyncClientStreamReader<RequestFunc>& streamReader)
+{
+    SetFeaturesReply reply;
+    return reply;
+}
+
+void registerClientStreamHandler(AsyncServer& server)
+{
+    server.registerCallHandler(&Application::AsyncService::RequestSetFeatures, &handleClientStream);
+}
 
 void clientStream(AsyncClient& client)
 {
     auto call = client.call(&Application::Stub::AsyncSetFeatures);
-    auto& stream = call->requestStream().get();
+    auto& stream = call->streamWriter().get();
     for (int i = 0; i < 100; ++i)
     {
         Feature feature;

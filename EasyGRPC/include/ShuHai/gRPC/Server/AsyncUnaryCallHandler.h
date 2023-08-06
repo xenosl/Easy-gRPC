@@ -5,11 +5,11 @@
 
 namespace ShuHai::gRPC::Server
 {
-    template<typename RequestFunc>
-    class AsyncUnaryCallHandler : public AsyncCallHandler<RequestFunc>
+    template<typename RequestFuncType>
+    class AsyncUnaryCallHandler : public AsyncCallHandler<RequestFuncType>
     {
     public:
-        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFunc);
+        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFuncType);
 
         using HandleFunc = std::function<Response(grpc::ServerContext&, const Request&)>;
 

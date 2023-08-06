@@ -20,25 +20,25 @@ namespace ShuHai::gRPC::Client
     {
     public:
         SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(CallFunc);
-        using RequestStream = AsyncClientStreamWriter<CallFunc>;
+        using StreamWriter = AsyncClientStreamWriter<CallFunc>;
 
         AsyncClientStreamCall(
             Stub* stub, CallFunc func, std::unique_ptr<grpc::ClientContext> context, grpc::CompletionQueue* cq)
             : AsyncCall(std::move(context))
-            , _requestStreamFuture(_requestStreamPromise.get_future())
+            , _streamWriterFuture(_streamWriterPromise.get_future())
             , _responseFuture(_responsePromise.get_future())
         {
             _stream = (new CallAction(this))->perform(stub, func, this->_context.get(), &_response, cq);
-            _requestStream = new RequestStream(cq, *_stream, this->_status, [this]() { onRequestStreamFinish(); });
+            _streamWriter = new StreamWriter(cq, *_stream, this->_status, [this]() { onStreamWriterFinish(); });
         }
 
         ~AsyncClientStreamCall() override
         {
-            delete _requestStream;
-            _requestStream = nullptr;
+            delete _streamWriter;
+            _streamWriter = nullptr;
         }
 
-        [[nodiscard]] std::shared_future<RequestStream*> requestStream() { return _requestStreamFuture; }
+        [[nodiscard]] std::shared_future<StreamWriter*> streamWriter() { return _streamWriterFuture; }
 
         [[nodiscard]] std::shared_future<Response> response() const { return _responseFuture; }
 
@@ -56,21 +56,21 @@ namespace ShuHai::gRPC::Client
                 return (stub->*func)(context, response, cq, this);
             }
 
-            void finalizeResult(bool ok) override { _owner->markRequestStreamReady(); }
+            void finalizeResult(bool ok) override { _owner->markStreamWriterReady(); }
 
         private:
             AsyncClientStreamCall* const _owner;
         };
 
-        void markRequestStreamReady() { _requestStreamPromise.set_value(_requestStream); }
+        void markStreamWriterReady() { _streamWriterPromise.set_value(_streamWriter); }
 
-        void onRequestStreamFinish() { _responsePromise.set_value(_response); }
+        void onStreamWriterFinish() { _responsePromise.set_value(_response); }
 
         std::unique_ptr<StreamingInterface> _stream;
 
-        RequestStream* _requestStream;
-        std::promise<RequestStream*> _requestStreamPromise;
-        std::shared_future<RequestStream*> _requestStreamFuture;
+        StreamWriter* _streamWriter;
+        std::promise<StreamWriter*> _streamWriterPromise;
+        std::shared_future<StreamWriter*> _streamWriterFuture;
 
         Response _response;
         std::promise<Response> _responsePromise;

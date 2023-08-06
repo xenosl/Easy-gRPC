@@ -101,6 +101,7 @@ namespace ShuHai::gRPC::Server
 }
 
 #define SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(F) \
+    using RequestFunc = F; \
     using Service = typename AsyncRequestTraits<F>::ServiceType; \
     using Request = typename AsyncRequestTraits<F>::RequestType; \
     using Response = typename AsyncRequestTraits<F>::ResponseType; \

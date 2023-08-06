@@ -22,11 +22,11 @@ namespace ShuHai::gRPC::Server
         grpc::ServerCompletionQueue* const _completionQueue;
     };
 
-    template<typename RequestFunc>
+    template<typename RequestFuncType>
     class AsyncCallHandler : public AsyncCallHandlerBase
     {
     public:
-        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFunc);
+        SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(RequestFuncType);
 
     protected:
         AsyncCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service, RequestFunc requestFunc)
