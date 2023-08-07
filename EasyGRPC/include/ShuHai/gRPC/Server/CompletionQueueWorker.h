@@ -181,8 +181,9 @@ namespace ShuHai::gRPC::Server
         {
             assert(it != _callHandlers.end());
             auto handler = *it;
-            _callHandlers.erase(it);
+            it = _callHandlers.erase(it);
             delete handler;
+            return it;
         }
 
         CallHandlerSet _callHandlers;
