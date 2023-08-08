@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShuHai/gRPC/Server/CompletionQueueWorker.h"
+#include "ShuHai/gRPC/Server/AsyncActionQueue.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -30,7 +30,7 @@ namespace ShuHai::gRPC::Server
             foreachService([&](auto s) { builder.RegisterService(s); });
 
             for (size_t i = 0; i < numCompletionQueues; ++i)
-                _queueWorkers.emplace_back(std::make_unique<CompletionQueueWorker>(builder.AddCompletionQueue()));
+                _asyncActionQueues.emplace_back(std::make_unique<AsyncActionQueue>(builder.AddCompletionQueue()));
 
             _server = builder.BuildAndStart();
             if (!_server)
@@ -48,18 +48,18 @@ namespace ShuHai::gRPC::Server
             if (started())
                 throw std::logic_error("The server already started.");
 
-            for (auto& queue : _queueWorkers)
+            for (auto& queue : _asyncActionQueues)
             {
                 auto t = std::make_unique<std::thread>(
                     [&]()
                     {
                         while (true)
                         {
-                            if (!queue->poll())
+                            if (!queue->asyncNext())
                                 break;
                         }
                     });
-                _queueThreads.emplace_back(std::move(t));
+                _asyncActionThreads.emplace_back(std::move(t));
             }
 
             _started = true;
@@ -71,15 +71,15 @@ namespace ShuHai::gRPC::Server
                 return;
 
             _server->Shutdown();
-            for (auto& w : _queueWorkers)
+            for (auto& w : _asyncActionQueues)
                 w->shutdown();
 
-            for (auto& t : _queueThreads)
+            for (auto& t : _asyncActionThreads)
                 t->join();
-            _queueThreads.clear();
+            _asyncActionThreads.clear();
 
             _server = nullptr;
-            _queueWorkers.clear();
+            _asyncActionQueues.clear();
         }
 
         [[nodiscard]] bool started() const { return _started; }
@@ -89,8 +89,8 @@ namespace ShuHai::gRPC::Server
 
         std::unique_ptr<grpc::Server> _server;
 
-        std::vector<std::unique_ptr<CompletionQueueWorker>> _queueWorkers;
-        std::vector<std::unique_ptr<std::thread>> _queueThreads;
+        std::vector<std::unique_ptr<AsyncActionQueue>> _asyncActionQueues;
+        std::vector<std::unique_ptr<std::thread>> _asyncActionThreads;
 
 
         // Services ----------------------------------------------------------------------------------------------------
@@ -159,7 +159,7 @@ namespace ShuHai::gRPC::Server
             typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& w = _queueWorkers.at(queueIndex);
+            auto& w = _asyncActionQueues.at(queueIndex);
             w->registerCallHandler(this->service<Service>(), requestFunc, std::move(handleFunc));
         }
 
@@ -168,7 +168,7 @@ namespace ShuHai::gRPC::Server
             typename AsyncClientStreamCallHandler<RequestFunc>::HandleFunc handleFunc, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& w = _queueWorkers.at(queueIndex);
+            auto& w = _asyncActionQueues.at(queueIndex);
             w->registerCallHandler(this->service<Service>(), requestFunc, std::move(handleFunc));
         }
     };

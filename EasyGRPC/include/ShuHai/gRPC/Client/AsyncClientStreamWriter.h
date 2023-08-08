@@ -49,8 +49,8 @@ namespace ShuHai::gRPC::Client
         // Actions -----------------------------------------------------------------------------------------------------
     public:
         /**
-		 * \brief Append writing of the specified \p message with certain \p options as an async-action to a queue. The
-         *  writing is performed as soon as it is allowed by the completion queue.
+		 * \brief Append writing of the specified \p message with certain \p options as an async-action to a completionQueue. The
+         *  writing is performed as soon as it is allowed by the completion completionQueue.
 		 * \param message The message to be written.
 		 * \param options The options to be used to write this message.
 		 * \return The future object that identifies whether the message is going to the wire or any exceptions occurs.

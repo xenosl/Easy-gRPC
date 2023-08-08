@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Client/AsyncUnaryCall.h"
 #include "ShuHai/gRPC/Client/AsyncClientStreamCall.h"
-#include "ShuHai/gRPC/CompletionQueueWorker.h"
+#include "ShuHai/gRPC/AsyncActionQueue.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -23,10 +23,10 @@ namespace ShuHai::gRPC::Client
         {
             _channel = grpc::CreateCustomChannel(targetEndpoint, credentials, channelArguments);
             initStubs();
-            initCompletionQueue();
+            initAsyncActionQueue();
         }
 
-        ~AsyncClient() { deinitCompletionQueue(); }
+        ~AsyncClient() { deinitAsyncActionQueue(); }
 
     private:
         std::shared_ptr<grpc::Channel> _channel;
@@ -47,8 +47,9 @@ namespace ShuHai::gRPC::Client
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncUnaryCall<CallFunc>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
-                std::move(context), nullptr, [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request,
+                _asyncActionQueue->completionQueue(), std::move(context), nullptr,
+                [this](std::shared_ptr<Call> c) { onCallDead(c); });
             addStreamingCall(call);
             return call;
         }
@@ -68,8 +69,9 @@ namespace ShuHai::gRPC::Client
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncUnaryCall<CallFunc>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request, _cqWorker->queue(),
-                std::move(context), std::move(callback), [this](std::shared_ptr<Call> c) { onCallDead(c); });
+            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request,
+                _asyncActionQueue->completionQueue(), std::move(context), std::move(callback),
+                [this](std::shared_ptr<Call> c) { onCallDead(c); });
             addStreamingCall(call);
             return call;
         }
@@ -79,8 +81,8 @@ namespace ShuHai::gRPC::Client
             CallFunc asyncCall, std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncClientStreamCall<CallFunc>;
-            auto call =
-                std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, std::move(context), _cqWorker->queue());
+            auto call = std::make_shared<Call>(
+                stub<typename Call::Stub>(), asyncCall, std::move(context), _asyncActionQueue->completionQueue());
             addStreamingCall(call);
             return call;
         }
@@ -102,38 +104,37 @@ namespace ShuHai::gRPC::Client
             _streamingCalls.erase(call);
         }
 
-        // TODO: Use lock-free container instead.
         std::mutex _streamingCallsMutex;
         std::unordered_set<CallPtr> _streamingCalls;
 
-        // Queue Worker ------------------------------------------------------------------------------------------------
+        // Action Queue ------------------------------------------------------------------------------------------------
     private:
-        void initCompletionQueue()
+        void initAsyncActionQueue()
         {
-            _cqWorker = std::make_unique<CompletionQueueWorker>(std::make_unique<grpc::CompletionQueue>());
+            _asyncActionQueue = std::make_unique<AsyncActionQueue>(std::make_unique<grpc::CompletionQueue>());
 
-            _cqThread = std::thread(
+            _asyncActionThread = std::thread(
                 [this]()
                 {
                     while (true)
                     {
-                        if (!_cqWorker->poll())
+                        if (!_asyncActionQueue->asyncNext())
                             break;
                     }
                 });
         }
 
-        void deinitCompletionQueue()
+        void deinitAsyncActionQueue()
         {
-            _cqWorker->shutdown();
+            _asyncActionQueue->shutdown();
 
-            _cqThread.join();
+            _asyncActionThread.join();
 
-            _cqWorker = nullptr;
+            _asyncActionQueue = nullptr;
         }
 
-        std::unique_ptr<CompletionQueueWorker> _cqWorker;
-        std::thread _cqThread;
+        std::unique_ptr<AsyncActionQueue> _asyncActionQueue;
+        std::thread _asyncActionThread;
 
 
         // Stubs -------------------------------------------------------------------------------------------------------

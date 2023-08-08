@@ -2,7 +2,7 @@
 
 #include "ShuHai/gRPC/Server/AsyncUnaryCallHandler.h"
 #include "ShuHai/gRPC/Server/AsyncClientStreamCallHandler.h"
-#include "ShuHai/gRPC/CompletionQueueWorker.h"
+#include "ShuHai/gRPC/AsyncActionQueue.h"
 #include "ShuHai/gRPC/CustomAsyncAction.h"
 
 #include <grpcpp/alarm.h>
@@ -12,40 +12,43 @@
 
 namespace ShuHai::gRPC::Server
 {
-    class CompletionQueueWorker : public gRPC::CompletionQueueWorker
+    class AsyncActionQueue : public gRPC::AsyncActionQueue
     {
     public:
-        explicit CompletionQueueWorker(std::unique_ptr<grpc::ServerCompletionQueue> queue)
-            : gRPC::CompletionQueueWorker(std::move(queue))
+        explicit AsyncActionQueue(std::unique_ptr<grpc::ServerCompletionQueue> queue)
+            : gRPC::AsyncActionQueue(std::move(queue))
         {
-            _queue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::CompletionQueueWorker::queue());
+            _completionQueue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::AsyncActionQueue::completionQueue());
         }
 
-        ~CompletionQueueWorker() override { new DeleteAllCallHandlersAction(this, _queue); }
+        ~AsyncActionQueue() override { new DeleteAllCallHandlersAction(this, _completionQueue); }
 
         void shutdown() override
         {
-            gRPC::CompletionQueueWorker::shutdown();
+            gRPC::AsyncActionQueue::shutdown();
             shutdownCallHandlers();
         }
 
-        [[nodiscard]] grpc::ServerCompletionQueue* queue() const { return _queue; }
+        /**
+         * \brief The underlying grpc::ServerCompletionQueue that current instance wraps.
+         */
+        [[nodiscard]] grpc::ServerCompletionQueue* completionQueue() const { return _completionQueue; }
 
     private:
         class Action : public CustomAsyncAction
         {
         public:
-            Action(CompletionQueueWorker* owner, grpc::ServerCompletionQueue* cq)
+            Action(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq)
                 : _owner(owner)
             {
                 this->trigger(cq);
             }
 
         protected:
-            CompletionQueueWorker* const _owner;
+            AsyncActionQueue* const _owner;
         };
 
-        grpc::ServerCompletionQueue* _queue {};
+        grpc::ServerCompletionQueue* _completionQueue {};
 
 
         // Call Handlers -----------------------------------------------------------------------------------------------
@@ -59,7 +62,7 @@ namespace ShuHai::gRPC::Server
                 throw std::invalid_argument("Null handleFunc.");
 
             new NewCallHandlerAction<AsyncUnaryCallHandler<RequestFunc>>(
-                this, _queue, service, requestFunc, std::move(handleFunc));
+                this, _completionQueue, service, requestFunc, std::move(handleFunc));
         }
 
         template<typename RequestFunc>
@@ -71,7 +74,7 @@ namespace ShuHai::gRPC::Server
                 throw std::invalid_argument("Null handleFunc.");
 
             new NewCallHandlerAction<AsyncClientStreamCallHandler<RequestFunc>>(
-                this, _queue, service, requestFunc, std::move(handleFunc));
+                this, _completionQueue, service, requestFunc, std::move(handleFunc));
         }
 
     private:
@@ -83,7 +86,7 @@ namespace ShuHai::gRPC::Server
         public:
             static_assert(std::is_base_of_v<AsyncCallHandlerBase, Handler>);
 
-            explicit NewCallHandlerAction(CompletionQueueWorker* owner, grpc::ServerCompletionQueue* cq,
+            explicit NewCallHandlerAction(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq,
                 typename Handler::Service* service, typename Handler::RequestFunc requestFunc,
                 typename Handler::HandleFunc handleFunc)
                 : Action(owner, cq)
@@ -112,7 +115,7 @@ namespace ShuHai::gRPC::Server
         {
         public:
             DeleteCallHandlerAction(
-                CompletionQueueWorker* owner, grpc::ServerCompletionQueue* cq, AsyncCallHandlerBase* handler)
+                AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq, AsyncCallHandlerBase* handler)
                 : Action(owner, cq)
             {
                 assert(handler);
@@ -138,7 +141,7 @@ namespace ShuHai::gRPC::Server
         class DeleteAllCallHandlersAction : public Action
         {
         public:
-            explicit DeleteAllCallHandlersAction(CompletionQueueWorker* owner, grpc::ServerCompletionQueue* cq)
+            explicit DeleteAllCallHandlersAction(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq)
                 : Action(owner, cq)
             { }
 
