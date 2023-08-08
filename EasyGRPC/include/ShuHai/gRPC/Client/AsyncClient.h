@@ -90,7 +90,6 @@ namespace ShuHai::gRPC::Client
             _streamingCalls.erase(call);
         }
 
-        // TODO: Use lock-free container instead.
         std::mutex _streamingCallsMutex;
         std::unordered_set<CallPtr> _streamingCalls;
 

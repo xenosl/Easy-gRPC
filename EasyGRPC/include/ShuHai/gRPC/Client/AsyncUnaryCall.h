@@ -2,7 +2,8 @@
 
 #include "ShuHai/gRPC/Client/AsyncCall.h"
 #include "ShuHai/gRPC/Client/AsyncCallError.h"
-#include "ShuHai/gRPC/Client/AsyncCallAction.h"
+#include "ShuHai/gRPC/Client/TypeTraits.h"
+#include "ShuHai/gRPC/AsyncAction.h"
 
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>

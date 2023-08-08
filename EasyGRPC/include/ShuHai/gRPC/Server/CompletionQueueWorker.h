@@ -79,7 +79,6 @@ namespace ShuHai::gRPC::Server
             return std::move(_callHandlers);
         }
 
-        // TODO: Use lock-free container instead.
         std::mutex _callHandlersMutex;
         CallHandlerSet _callHandlers;
     };
