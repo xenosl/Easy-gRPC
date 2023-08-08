@@ -51,13 +51,10 @@ namespace ShuHai::gRPC::Server
             for (auto& queue : _asyncActionQueues)
             {
                 auto t = std::make_unique<std::thread>(
-                    [&]()
+                    [&queue]()
                     {
-                        while (true)
-                        {
-                            if (!queue->asyncNext())
-                                break;
-                        }
+                        while (queue->asyncNext() != grpc::CompletionQueue::SHUTDOWN)
+                            continue;
                     });
                 _asyncActionThreads.emplace_back(std::move(t));
             }

@@ -116,11 +116,8 @@ namespace ShuHai::gRPC::Client
             _asyncActionThread = std::thread(
                 [this]()
                 {
-                    while (true)
-                    {
-                        if (!_asyncActionQueue->asyncNext())
-                            break;
-                    }
+                    while (_asyncActionQueue->asyncNext() != grpc::CompletionQueue::SHUTDOWN)
+                        continue;
                 });
         }
 
