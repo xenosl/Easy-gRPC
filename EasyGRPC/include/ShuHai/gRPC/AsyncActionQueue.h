@@ -45,11 +45,7 @@ namespace ShuHai::gRPC
             return status;
         }
 
-        virtual void shutdown()
-        {
-            _completionQueue->Shutdown();
-            //_shuttingDown = true;
-        }
+        virtual void shutdown() { _completionQueue->Shutdown(); }
 
         /**
          * \brief The underlying grpc::CompletionQueue that current instance wraps.

@@ -21,12 +21,14 @@ namespace ShuHai::gRPC::Server
             _completionQueue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::AsyncActionQueue::completionQueue());
         }
 
-        ~AsyncActionQueue() override { new DeleteAllCallHandlersAction(this, _completionQueue); }
+        ~AsyncActionQueue() override { }
 
         void shutdown() override
         {
-            gRPC::AsyncActionQueue::shutdown();
+            new DeleteAllCallHandlersAction(this, _completionQueue);
             shutdownCallHandlers();
+
+            gRPC::AsyncActionQueue::shutdown();
         }
 
         /**
