@@ -19,6 +19,17 @@ SetFeaturesReply handleClientStream(
     grpc::ServerContext& context, Server::AsyncClientStreamReader<RequestFunc>& streamReader)
 {
     SetFeaturesReply reply;
+
+    console().writeLine("[Server] Start read client stream...");
+    int count = 0;
+    while (streamReader.moveNext().get())
+    {
+        const auto& request = streamReader.current();
+        console().writeLine("[Server] Request received: %s=%s", request.name().c_str(), request.value().c_str());
+        count++;
+    }
+    reply.set_count(count);
+
     return reply;
 }
 
@@ -31,16 +42,21 @@ void clientStream(AsyncClient& client)
 {
     auto call = client.call(&Application::Stub::AsyncSetFeatures);
     auto& stream = call->streamWriter().get();
+
+    console().writeLine("[Client] Start write client stream...");
     for (int i = 0; i < 100; ++i)
     {
         Feature feature;
         feature.set_name(std::to_string(i));
         feature.set_value(std::to_string(i));
         stream->write(feature);
+        console().writeLine("[Client] Request written: %s=%s", feature.name().c_str(), feature.value().c_str());
     }
     stream->finish();
+    console().writeLine("[Client] Request finished");
 
-    //auto response = call->response().get();
+    auto response = call->response().get();
+    console().writeLine("[Client] Response received: %d", response.count());
 }
 
 int main(int argc, char* argv[])
