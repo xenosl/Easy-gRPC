@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "google/protobuf/wrappers.proto";
+
+package FooLib;
+
+service TypeManager
+{
+    rpc GetType(google.protobuf.StringValue) returns(GetTypeReply) {};
+}
+
+message GetTypeReply
+{
+    Type type = 1;
+}
+
+message Type
+{
+    string namespace = 1;
+    string name = 2;
+    int32 id = 3;
+    Type base = 4;
+}

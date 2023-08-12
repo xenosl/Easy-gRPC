@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+// Import using path relative to proto_path.
+import "FooLib/Base.proto";
+
+package FooApp;
+
+service App
+{
+    rpc GetAppType(google.protobuf.Empty) returns(FooLib.Type) {}
+}
