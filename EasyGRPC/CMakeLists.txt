@@ -3,8 +3,9 @@ add_library(gRPC INTERFACE)
 target_include_directories(gRPC
         INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include> $<INSTALL_INTERFACE:include>)
 
+find_package(asio REQUIRED)
 target_link_libraries(gRPC
-        INTERFACE gRPC::grpc++)
+        INTERFACE gRPC::grpc++ asio::asio)
 
 
 shuhai_read_version_from_macro(VERSION
