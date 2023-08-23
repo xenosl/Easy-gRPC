@@ -102,10 +102,10 @@ namespace ShuHai::gRPC::Client
 }
 
 #define SHUHAI_GRPC_CLIENT_EXPAND_AsyncCallTraits(F) \
-    using Stub = typename AsyncCallTraits<F>::StubType; \
-    using Request = typename AsyncCallTraits<F>::RequestType; \
-    using Response = typename AsyncCallTraits<F>::ResponseType; \
-    using StreamingInterface = typename AsyncCallTraits<F>::StreamingInterfaceType; \
+    using Stub = typename ::ShuHai::gRPC::Client::AsyncCallTraits<F>::StubType; \
+    using Request = typename ::ShuHai::gRPC::Client::AsyncCallTraits<F>::RequestType; \
+    using Response = typename ::ShuHai::gRPC::Client::AsyncCallTraits<F>::ResponseType; \
+    using StreamingInterface = typename ::ShuHai::gRPC::Client::AsyncCallTraits<F>::StreamingInterfaceType; \
 \
     static_assert(std::is_member_function_pointer_v<F>); \
     static_assert(std::is_base_of_v<google::protobuf::Message, Request>); \

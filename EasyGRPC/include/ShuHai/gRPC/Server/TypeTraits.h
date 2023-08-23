@@ -102,11 +102,11 @@ namespace ShuHai::gRPC::Server
 
 #define SHUHAI_GRPC_SERVER_EXPAND_AsyncRequestTraits(F) \
     using RequestFunc = F; \
-    using Service = typename AsyncRequestTraits<F>::ServiceType; \
-    using Request = typename AsyncRequestTraits<F>::RequestType; \
-    using Response = typename AsyncRequestTraits<F>::ResponseType; \
-    using StreamingInterface = typename AsyncRequestTraits<F>::StreamingInterfaceType; \
-    static constexpr gRPC::RpcType RpcType = AsyncRequestTraits<F>::RpcType; \
+    using Service = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::ServiceType; \
+    using Request = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::RequestType; \
+    using Response = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::ResponseType; \
+    using StreamingInterface = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::StreamingInterfaceType; \
+    static constexpr gRPC::RpcType RpcType = ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::RpcType; \
 \
     static_assert(std::is_member_function_pointer_v<F>); \
     static_assert(std::is_base_of_v<grpc::Service, Service>); \
