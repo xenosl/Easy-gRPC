@@ -15,7 +15,7 @@ namespace ShuHai::gRPC
     {
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename W>
@@ -23,7 +23,7 @@ namespace ShuHai::gRPC
     {
         using WriteType = W;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename R>
@@ -31,7 +31,7 @@ namespace ShuHai::gRPC
     {
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename W>
@@ -39,7 +39,7 @@ namespace ShuHai::gRPC
     {
         using WriteType = W;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename R>
@@ -47,7 +47,7 @@ namespace ShuHai::gRPC
     {
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename W>
@@ -55,7 +55,7 @@ namespace ShuHai::gRPC
     {
         using WriteType = W;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename W, typename R>
@@ -64,7 +64,7 @@ namespace ShuHai::gRPC
         using WriteType = W;
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename W>
@@ -72,7 +72,7 @@ namespace ShuHai::gRPC
     {
         using WriteType = W;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename W>
@@ -80,7 +80,7 @@ namespace ShuHai::gRPC
     {
         using WriteType = W;
 
-        static constexpr RpcType RpcType = RpcType::UnaryCall;
+        static constexpr RpcType RPC_TYPE = RpcType::UnaryCall;
     };
 
     template<typename R>
@@ -88,7 +88,7 @@ namespace ShuHai::gRPC
     {
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::UnaryCall;
+        static constexpr RpcType RPC_TYPE = RpcType::UnaryCall;
     };
 
     template<typename W, typename R>
@@ -97,7 +97,7 @@ namespace ShuHai::gRPC
         using WriteType = W;
         using ReadType = R;
 
-        static constexpr RpcType RpcType = RpcType::BidiStream;
+        static constexpr RpcType RPC_TYPE = RpcType::BidiStream;
     };
 
     template<typename W, typename R>
@@ -106,6 +106,6 @@ namespace ShuHai::gRPC
         using WriteType = W;
         using ReadType = R;
         
-        static constexpr RpcType RpcType = RpcType::BidiStream;
+        static constexpr RpcType RPC_TYPE = RpcType::BidiStream;
     };
 }

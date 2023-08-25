@@ -27,7 +27,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncResponseWriter<Response>;
 
-        static constexpr RpcType RpcType = RpcType::UnaryCall;
+        static constexpr RpcType RPC_TYPE = RpcType::UnaryCall;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -42,7 +42,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncReader<Response, Request>;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -57,7 +57,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncWriter<Response>;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename Service, typename Request, typename Response>
@@ -72,7 +72,7 @@ namespace ShuHai::gRPC::Server
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ServerAsyncReaderWriter<Response, Request>;
 
-        static constexpr RpcType RpcType = RpcType::BidiStream;
+        static constexpr RpcType RPC_TYPE = RpcType::BidiStream;
     };
 
     template<typename F>
@@ -90,7 +90,7 @@ namespace ShuHai::gRPC::Server
     template<typename F>
     static constexpr RpcType rpcTypeOf()
     {
-        return AsyncRequestTraits<F>::RpcType;
+        return AsyncRequestTraits<F>::RPC_TYPE;
     }
 
     template<typename F, RpcType T, typename EnabledType>
@@ -106,7 +106,7 @@ namespace ShuHai::gRPC::Server
     using Request = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::RequestType; \
     using Response = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::ResponseType; \
     using StreamingInterface = typename ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::StreamingInterfaceType; \
-    static constexpr gRPC::RpcType RpcType = ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::RpcType; \
+    static constexpr gRPC::RpcType RPC_TYPE = ::ShuHai::gRPC::Server::AsyncRequestTraits<F>::RPC_TYPE; \
 \
     static_assert(std::is_member_function_pointer_v<F>); \
     static_assert(std::is_base_of_v<grpc::Service, Service>); \

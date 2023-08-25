@@ -28,7 +28,7 @@ namespace ShuHai::gRPC::Client
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncResponseReader<Response>;
 
-        static constexpr RpcType RpcType = RpcType::UnaryCall;
+        static constexpr RpcType RPC_TYPE = RpcType::UnaryCall;
     };
 
     template<typename Stub, typename Request, typename Response>
@@ -43,7 +43,7 @@ namespace ShuHai::gRPC::Client
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncWriter<Request>;
 
-        static constexpr RpcType RpcType = RpcType::ClientStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ClientStream;
     };
 
     template<typename Stub, typename Request, typename Response>
@@ -58,7 +58,7 @@ namespace ShuHai::gRPC::Client
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncReader<Response>;
 
-        static constexpr RpcType RpcType = RpcType::ServerStream;
+        static constexpr RpcType RPC_TYPE = RpcType::ServerStream;
     };
 
     template<typename Stub, typename Request, typename Response>
@@ -73,7 +73,7 @@ namespace ShuHai::gRPC::Client
         using ResponseType = Response;
         using StreamingInterfaceType = grpc::ClientAsyncReaderWriter<Request, Response>;
 
-        static constexpr RpcType RpcType = RpcType::BidiStream;
+        static constexpr RpcType RPC_TYPE = RpcType::BidiStream;
     };
 
     template<typename F>
@@ -91,7 +91,7 @@ namespace ShuHai::gRPC::Client
     template<typename F>
     constexpr RpcType rpcTypeOf()
     {
-        return AsyncCallTraits<F>::RpcType;
+        return AsyncCallTraits<F>::RPC_TYPE;
     }
 
     template<typename F, RpcType T, typename EnabledType>
