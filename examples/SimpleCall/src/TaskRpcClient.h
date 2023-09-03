@@ -16,15 +16,10 @@ namespace ShuHai::gRPC::Examples
             : _client(client)
         { }
 
-        auto GetTarget(const Proto::Task::GetTargetRequest& request)
+        auto GetTarget(const Proto::Task::GetTargetRequest& request,
+            std::function<void(std::shared_future<Proto::Task::GetTargetReply>)> callback)
         {
-            return _client.call(&Proto::Task::Rpc::Stub::AsyncGetTarget, request)->response();
-        }
-
-        void GetTarget(const Proto::Task::GetTargetRequest& request,
-            std::function<void(std::future<Proto::Task::GetTargetReply>&&)> callback)
-        {
-            _client.call(&Proto::Task::Rpc::Stub::AsyncGetTarget, request, std::move(callback));
+            return _client.call(&Proto::Task::Rpc::Stub::AsyncGetTarget, request, std::move(callback))->response();
         }
 
     private:

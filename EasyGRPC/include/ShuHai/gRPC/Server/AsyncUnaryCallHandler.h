@@ -3,6 +3,11 @@
 #include "ShuHai/gRPC/Server/AsyncCallHandler.h"
 #include "ShuHai/gRPC/IAsyncAction.h"
 
+#include <grpcpp/alarm.h>
+
+#include <asio/post.hpp>
+#include <asio/execution_context.hpp>
+
 namespace ShuHai::gRPC::Server
 {
     template<typename RequestFuncType>
@@ -14,9 +19,10 @@ namespace ShuHai::gRPC::Server
         using HandleFunc = std::function<Response(grpc::ServerContext&, const Request&)>;
 
         AsyncUnaryCallHandler(grpc::ServerCompletionQueue* completionQueue, Service* service, RequestFunc requestFunc,
-            HandleFunc handleFunc)
+            HandleFunc handleFunc, asio::execution_context* handleFuncExecutionContext)
             : AsyncCallHandler<RequestFunc>(completionQueue, service, requestFunc)
             , _handleFunc(std::move(handleFunc))
+            , _handleFuncExecutionContext(handleFuncExecutionContext)
         {
             newCallRequest();
         }
@@ -31,6 +37,7 @@ namespace ShuHai::gRPC::Server
             grpc::ServerContext context;
             StreamingInterface stream;
             Request request;
+            Response response;
         };
 
         class CallHandlerAction : public IAsyncAction
@@ -51,12 +58,7 @@ namespace ShuHai::gRPC::Server
         public:
             ServiceRequestAction(AsyncUnaryCallHandler* handler, Call* call)
                 : CallHandlerAction(handler, call)
-            { }
-
-            void perform()
             {
-                auto handler = this->_handler;
-                auto call = this->_call;
                 auto service = handler->_service;
                 auto func = handler->_requestFunc;
                 auto cq = handler->_completionQueue;
@@ -66,16 +68,49 @@ namespace ShuHai::gRPC::Server
             void finalizeResult(bool ok) override { this->_handler->finalizeCallRequest(this->_call, ok); }
         };
 
+        class CallHandlingAction : public CallHandlerAction
+        {
+        public:
+            CallHandlingAction(AsyncUnaryCallHandler* handler, Call* call, asio::execution_context* executionContext)
+                : CallHandlerAction(handler, call)
+            {
+                const auto& func = this->_handler->_handleFunc;
+                if (executionContext)
+                {
+                    auto ex = asio::get_associated_executor(*executionContext);
+                    asio::post(ex,
+                        [&func, call, this]()
+                        {
+                            call->response = func(call->context, call->request);
+                            notifyFinalize();
+                        });
+                }
+                else
+                {
+                    asio::post(
+                        [&func, call, this]()
+                        {
+                            call->response = func(call->context, call->request);
+                            notifyFinalize();
+                        });
+                }
+            }
+
+            void finalizeResult(bool ok) override { this->_handler->finalizeCallHandling(this->_call, ok); }
+
+        private:
+            void notifyFinalize() { _alarm.Set(this->_handler->_completionQueue, gpr_now(GPR_CLOCK_REALTIME), this); }
+
+            grpc::Alarm _alarm;
+        };
+
         class CallFinishAction : public CallHandlerAction
         {
         public:
-            explicit CallFinishAction(AsyncUnaryCallHandler* handler, Call* call)
+            CallFinishAction(AsyncUnaryCallHandler* handler, Call* call, const grpc::Status& status)
                 : CallHandlerAction(handler, call)
-            { }
-
-            void perform(const Response& response, const grpc::Status& status)
             {
-                this->_call->stream.Finish(response, status, this);
+                this->_call->stream.Finish(call->response, status, this);
             }
 
             void finalizeResult(bool ok) override { this->_handler->finalizeCallFinish(this->_call, ok); }
@@ -84,7 +119,7 @@ namespace ShuHai::gRPC::Server
         void newCallRequest()
         {
             auto call = new Call();
-            (new ServiceRequestAction(this, call))->perform();
+            new ServiceRequestAction(this, call);
         }
 
         void finalizeCallRequest(Call* call, bool ok)
@@ -96,13 +131,20 @@ namespace ShuHai::gRPC::Server
             {
                 newCallRequest();
 
-                auto response = _handleFunc(call->context, call->request);
-                (new CallFinishAction(this, call))->perform(response, grpc::Status::OK);
+                new CallHandlingAction(this, call, _handleFuncExecutionContext);
             }
             else
             {
                 delete call;
             }
+        }
+
+        void finalizeCallHandling(Call* call, bool ok)
+        {
+            if (ok)
+                new CallFinishAction(this, call, grpc::Status::OK);
+            else
+                delete call;
         }
 
         void finalizeCallFinish(Call* call, bool ok)
@@ -115,5 +157,6 @@ namespace ShuHai::gRPC::Server
         }
 
         HandleFunc _handleFunc;
+        asio::execution_context* _handleFuncExecutionContext {};
     };
 }

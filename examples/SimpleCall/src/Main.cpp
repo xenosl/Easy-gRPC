@@ -33,11 +33,11 @@ void demoGetTarget(TaskRpcClient<Stubs...>& client)
     for (const auto& request : requests)
     {
         client.GetTarget(request,
-            [](std::future<Proto::Task::GetTargetReply>&& f)
+            [](std::shared_future<Proto::Task::GetTargetReply> f)
             {
                 try
                 {
-                    auto reply = f.get();
+                    const auto& reply = f.get();
                     console().writeLine("[Callback] GetTargetReply: %d", reply.target().id());
                 }
                 catch (const Client::AsyncCallError& e)
@@ -54,7 +54,7 @@ void demoGetTarget(TaskRpcClient<Stubs...>& client)
     // Wait for the result
     for (const auto& request : requests)
     {
-        auto result = client.GetTarget(request);
+        auto result = client.GetTarget(request, nullptr);
         try
         {
             const auto& reply = result.get();

@@ -46,12 +46,7 @@ namespace ShuHai::gRPC::Client
             CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
-            using Call = AsyncUnaryCall<CallFunc>;
-            auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request,
-                _asyncActionQueue->completionQueue(), std::move(context), nullptr,
-                [this](std::shared_ptr<Call> c) { onCallDead(c); });
-            addStreamingCall(call);
-            return call;
+            return call(asyncCall, request, nullptr, nullptr, std::move(context));
         }
 
         /**
@@ -60,17 +55,21 @@ namespace ShuHai::gRPC::Client
          * \param asyncCall The function address of Stub::Async<RpcName> which need to be executed.
          * \param request The rpc parameter.
          * \param callback The callback function for rpc result notification.
+         * \param callbackExecutionContext The asio execution context that execute the specified callback function. System
+         *  context is used if the value is null.
+         * \param context The gRPC context for the call.
          * \return The call instance.
          */
         template<typename CallFunc>
         EnableIfRpcTypeMatch<CallFunc, RpcType::UnaryCall, std::shared_ptr<AsyncUnaryCall<CallFunc>>> call(
             CallFunc asyncCall, const RequestTypeOf<CallFunc>& request,
             typename AsyncUnaryCall<CallFunc>::ResponseCallback callback,
+            asio::execution_context* callbackExecutionContext = nullptr,
             std::unique_ptr<grpc::ClientContext> context = nullptr)
         {
             using Call = AsyncUnaryCall<CallFunc>;
             auto call = std::make_shared<Call>(stub<typename Call::Stub>(), asyncCall, request,
-                _asyncActionQueue->completionQueue(), std::move(context), std::move(callback),
+                _asyncActionQueue->completionQueue(), std::move(context), std::move(callback), callbackExecutionContext,
                 [this](std::shared_ptr<Call> c) { onCallDead(c); });
             addStreamingCall(call);
             return call;

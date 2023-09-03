@@ -16,11 +16,10 @@ namespace ShuHai::gRPC::Examples
             : _client(client)
         { }
 
-        void Launch(const Proto::App::LaunchRequest& request,
-            std::function<void(const Proto::App::LaunchReply&)> onSucceed = nullptr,
-            std::function<void(const grpc::Status&)> onFailed = nullptr)
+        auto Launch(const Proto::App::LaunchRequest& request,
+            std::function<void(std::shared_future<Proto::App::LaunchReply>)> callback)
         {
-            _client.call(&Proto::App::Rpc::Stub::AsyncLaunch, request, std::move(onSucceed), std::move(onFailed));
+            return _client.call(&Proto::App::Rpc::Stub::AsyncLaunch, request, std::move(callback))->response();
         }
 
     private:

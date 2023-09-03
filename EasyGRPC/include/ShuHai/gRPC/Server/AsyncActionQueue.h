@@ -8,6 +8,7 @@
 #include <grpcpp/alarm.h>
 
 #include <unordered_set>
+#include <mutex>
 #include <atomic>
 
 namespace ShuHai::gRPC::Server
@@ -21,12 +22,12 @@ namespace ShuHai::gRPC::Server
             _completionQueue = dynamic_cast<grpc::ServerCompletionQueue*>(gRPC::AsyncActionQueue::completionQueue());
         }
 
-        ~AsyncActionQueue() override { }
+        ~AsyncActionQueue() override = default;
 
         void shutdown() override
         {
-            new DeleteAllCallHandlersAction(this, _completionQueue);
             shutdownCallHandlers();
+            deleteAllCallHandlers();
 
             gRPC::AsyncActionQueue::shutdown();
         }
@@ -58,13 +59,14 @@ namespace ShuHai::gRPC::Server
         template<typename RequestFunc>
         EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::UnaryCall> registerCallHandler(
             typename AsyncUnaryCallHandler<RequestFunc>::Service* service, RequestFunc requestFunc,
-            typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc)
+            typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc,
+            asio::execution_context* handleFuncExecutionContext = nullptr)
         {
             if (!handleFunc)
                 throw std::invalid_argument("Null handleFunc.");
 
-            new NewCallHandlerAction<AsyncUnaryCallHandler<RequestFunc>>(
-                this, _completionQueue, service, requestFunc, std::move(handleFunc));
+            newCallHandler<AsyncUnaryCallHandler<RequestFunc>>(
+                _completionQueue, service, requestFunc, std::move(handleFunc), handleFuncExecutionContext);
         }
 
         template<typename RequestFunc>
@@ -75,84 +77,12 @@ namespace ShuHai::gRPC::Server
             if (!handleFunc)
                 throw std::invalid_argument("Null handleFunc.");
 
-            new NewCallHandlerAction<AsyncClientStreamCallHandler<RequestFunc>>(
-                this, _completionQueue, service, requestFunc, std::move(handleFunc));
+            newCallHandler<AsyncClientStreamCallHandler<RequestFunc>>(
+                _completionQueue, service, requestFunc, std::move(handleFunc));
         }
 
     private:
         using CallHandlerSet = std::unordered_set<AsyncCallHandlerBase*>;
-
-        template<typename Handler>
-        class NewCallHandlerAction : public Action
-        {
-        public:
-            static_assert(std::is_base_of_v<AsyncCallHandlerBase, Handler>);
-
-            explicit NewCallHandlerAction(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq,
-                typename Handler::Service* service, typename Handler::RequestFunc requestFunc,
-                typename Handler::HandleFunc handleFunc)
-                : Action(owner, cq)
-            {
-                _handler.store(new Handler(cq, service, requestFunc, std::move(handleFunc)), std::memory_order_release);
-            }
-
-            void finalizeResult(bool ok) override
-            {
-                Handler* handler;
-                while (!(handler = _handler.load(std::memory_order_acquire)))
-                    continue;
-
-                assert(handler);
-                if (ok)
-                    this->_owner->addHandler(handler);
-                else
-                    delete handler; // Canceled.
-            }
-
-        private:
-            std::atomic<Handler*> _handler {};
-        };
-
-        class DeleteCallHandlerAction : public Action
-        {
-        public:
-            DeleteCallHandlerAction(
-                AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq, AsyncCallHandlerBase* handler)
-                : Action(owner, cq)
-            {
-                assert(handler);
-                _handler.store(handler, std::memory_order_release);
-            }
-
-            void finalizeResult(bool ok) override
-            {
-                assert(ok); // Cancellation of this action is not allowed.
-
-                AsyncCallHandlerBase* handler;
-                while (!(handler = _handler.load(std::memory_order_acquire)))
-                    continue;
-
-                assert(handler);
-                this->_owner->deleteCallHandler(handler);
-            }
-
-        private:
-            std::atomic<AsyncCallHandlerBase*> _handler;
-        };
-
-        class DeleteAllCallHandlersAction : public Action
-        {
-        public:
-            explicit DeleteAllCallHandlersAction(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq)
-                : Action(owner, cq)
-            { }
-
-            void finalizeResult(bool ok) override
-            {
-                assert(ok); // Cancellation of this action is not allowed.
-                this->_owner->deleteAllCallHandlers();
-            }
-        };
 
         void shutdownCallHandlers()
         {
@@ -160,29 +90,38 @@ namespace ShuHai::gRPC::Server
                 h->shutdown();
         }
 
-        void addHandler(AsyncCallHandlerBase* handler)
+        template<typename T, typename... Args>
+        T* newCallHandler(Args&&... args)
         {
-            auto ret = _callHandlers.emplace(handler);
-            assert(ret.second);
+            auto handler = new T(std::forward<Args>(args)...);
+            {
+                std::lock_guard l(_callHandlersMutex);
+                _callHandlers.emplace(handler);
+            }
+            return handler;
         }
 
         bool deleteCallHandler(AsyncCallHandlerBase* handler)
         {
+            std::lock_guard l(_callHandlersMutex);
+
             auto it = _callHandlers.find(handler);
             if (it == _callHandlers.end())
                 return false;
-            deleteCallHandler(it);
+            doDeleteCallHandler(it);
             return true;
         }
 
         void deleteAllCallHandlers()
         {
+            std::lock_guard l(_callHandlersMutex);
+
             auto it = _callHandlers.begin();
             while (it != _callHandlers.end())
-                it = deleteCallHandler(it);
+                it = doDeleteCallHandler(it);
         }
 
-        CallHandlerSet::iterator deleteCallHandler(CallHandlerSet::iterator it)
+        CallHandlerSet::iterator doDeleteCallHandler(CallHandlerSet::iterator it)
         {
             assert(it != _callHandlers.end());
             auto handler = *it;
@@ -191,6 +130,7 @@ namespace ShuHai::gRPC::Server
             return it;
         }
 
+        std::mutex _callHandlersMutex;
         CallHandlerSet _callHandlers;
     };
 }
