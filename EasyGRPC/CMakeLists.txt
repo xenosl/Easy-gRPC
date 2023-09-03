@@ -1,7 +1,11 @@
 add_library(gRPC INTERFACE)
 
+set(SHUHAI_GRPC_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+
+configure_file(${PROJECT_SOURCE_DIR}/cmake/Version.h.in.h ${SHUHAI_GRPC_INCLUDE_DIR}/ShuHai/gRPC/Version.h @ONLY)
+
 target_include_directories(gRPC
-        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include> $<INSTALL_INTERFACE:include>)
+        INTERFACE $<BUILD_INTERFACE:${SHUHAI_GRPC_INCLUDE_DIR}> $<INSTALL_INTERFACE:include>)
 
 find_package(asio REQUIRED)
 target_link_libraries(gRPC

@@ -22,5 +22,8 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
+# Genreated versio header
+EasyGRPC/include/ShuHai/gRPC/Version.h
+
 # Generated code of current project
 Generated/
