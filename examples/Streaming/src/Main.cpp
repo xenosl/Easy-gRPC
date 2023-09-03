@@ -1,4 +1,4 @@
-#include "Generated/Streaming.grpc.pb.h"
+#include "Streaming.grpc.pb.h"
 
 #include "ShuHai/gRPC/Examples/Console.h"
 #include "ShuHai/gRPC/Examples/Thread.h"

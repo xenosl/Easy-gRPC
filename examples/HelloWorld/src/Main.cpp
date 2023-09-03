@@ -1,4 +1,4 @@
-#include "Generated/HelloWorld.grpc.pb.h"
+#include "HelloWorld.grpc.pb.h"
 
 #include "ShuHai/gRPC/Examples/Console.h"
 #include "ShuHai/gRPC/Examples/Thread.h"

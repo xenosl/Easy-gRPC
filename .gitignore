@@ -24,6 +24,3 @@ _deps
 
 # Genreated versio header
 EasyGRPC/include/ShuHai/gRPC/Version.h
-
-# Generated code of current project
-Generated/

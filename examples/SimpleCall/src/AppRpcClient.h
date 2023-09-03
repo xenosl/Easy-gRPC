@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Generated/App.grpc.pb.h"
+#include "App.grpc.pb.h"
 
 #include <ShuHai/gRPC/Client/AsyncClient.h>
 

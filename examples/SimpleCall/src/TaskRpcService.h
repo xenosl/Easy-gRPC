@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Generated/Task.grpc.pb.h"
+#include "Task.grpc.pb.h"
 
 #include <ShuHai/gRPC/Server/AsyncServer.h>
 
