@@ -5,7 +5,7 @@
 
 #include <grpcpp/alarm.h>
 
-#include <asio/post.hpp>
+#include <asio/dispatch.hpp>
 #include <asio/execution_context.hpp>
 
 namespace ShuHai::gRPC::Server
@@ -75,9 +75,9 @@ namespace ShuHai::gRPC::Server
                 : CallHandlerAction(handler, call)
             {
                 if (executionContext)
-                    asio::post(asio::get_associated_executor(*executionContext), [this]() { perform(); });
+                    asio::dispatch(asio::get_associated_executor(*executionContext), [this]() { perform(); });
                 else
-                    asio::post([this]() { perform(); });
+                    asio::dispatch([this]() { perform(); });
             }
 
             void finalizeResult(bool ok) override { this->_handler->finalizeCallHandling(this->_call, ok); }

@@ -7,7 +7,7 @@
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/message.h>
 
-#include <asio/post.hpp>
+#include <asio/dispatch.hpp>
 #include <asio/execution_context.hpp>
 
 #include <future>
@@ -95,11 +95,11 @@ namespace ShuHai::gRPC::Client
             if (_responseCallbackExecutionContext)
             {
                 auto ex = asio::get_associated_executor(*_responseCallbackExecutionContext);
-                asio::post(ex, [cb = std::move(_responseCallback), f = _responseFuture]() { cb(f); });
+                asio::dispatch(ex, [cb = std::move(_responseCallback), f = _responseFuture]() { cb(f); });
             }
             else
             {
-                asio::post([cb = std::move(_responseCallback), f = _responseFuture]() { cb(f); });
+                asio::dispatch([cb = std::move(_responseCallback), f = _responseFuture]() { cb(f); });
             }
         }
 
