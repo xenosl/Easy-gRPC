@@ -20,7 +20,7 @@ if(ASIO_INCLUDE_DIR)
     asio_extract_version(ASIO_VERSION ${ASIO_INCLUDE_DIR}/asio/version.hpp)
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(asio
-            REQUIRED_VARS ASIO_INCLUDE_DIR
+            REQUIRED_VARS ASIO_ROOT
             VERSION_VAR ASIO_VERSION)
 endif()
 
