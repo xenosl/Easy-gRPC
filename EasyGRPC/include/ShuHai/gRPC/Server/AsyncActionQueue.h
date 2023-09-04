@@ -38,19 +38,6 @@ namespace ShuHai::gRPC::Server
         [[nodiscard]] grpc::ServerCompletionQueue* completionQueue() const { return _completionQueue; }
 
     private:
-        class Action : public CustomAsyncAction
-        {
-        public:
-            Action(AsyncActionQueue* owner, grpc::ServerCompletionQueue* cq)
-                : _owner(owner)
-            {
-                this->trigger(cq);
-            }
-
-        protected:
-            AsyncActionQueue* const _owner;
-        };
-
         grpc::ServerCompletionQueue* _completionQueue {};
 
 
