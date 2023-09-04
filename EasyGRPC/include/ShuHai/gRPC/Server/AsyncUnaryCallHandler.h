@@ -74,32 +74,25 @@ namespace ShuHai::gRPC::Server
             CallHandlingAction(AsyncUnaryCallHandler* handler, Call* call, asio::execution_context* executionContext)
                 : CallHandlerAction(handler, call)
             {
-                const auto& func = this->_handler->_handleFunc;
                 if (executionContext)
-                {
-                    auto ex = asio::get_associated_executor(*executionContext);
-                    asio::post(ex,
-                        [&func, call, this]()
-                        {
-                            call->response = func(call->context, call->request);
-                            notifyFinalize();
-                        });
-                }
+                    asio::post(asio::get_associated_executor(*executionContext), [this]() { perform(); });
                 else
-                {
-                    asio::post(
-                        [&func, call, this]()
-                        {
-                            call->response = func(call->context, call->request);
-                            notifyFinalize();
-                        });
-                }
+                    asio::post([this]() { perform(); });
             }
 
             void finalizeResult(bool ok) override { this->_handler->finalizeCallHandling(this->_call, ok); }
 
         private:
-            void notifyFinalize() { _alarm.Set(this->_handler->_completionQueue, gpr_now(GPR_CLOCK_REALTIME), this); }
+            void perform()
+            {
+                // Call handler func
+                auto call = this->_call;
+                const auto& func = this->_handler->_handleFunc;
+                call->response = func(call->context, call->request);
+
+                // Notify finalize
+                _alarm.Set(this->_handler->_completionQueue, gpr_now(GPR_CLOCK_MONOTONIC), this);
+            }
 
             grpc::Alarm _alarm;
         };
