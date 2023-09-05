@@ -153,11 +153,13 @@ namespace ShuHai::gRPC::Server
          */
         template<typename RequestFunc>
         EnableIfAnyRpcTypeMatch<void, RequestFunc, RpcType::UnaryCall> registerCallHandler(RequestFunc requestFunc,
-            typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc, size_t queueIndex = 0)
+            typename AsyncUnaryCallHandler<RequestFunc>::HandleFunc handleFunc,
+            asio::execution_context* handleFuncExecutionContext = nullptr, size_t queueIndex = 0)
         {
             using Service = typename AsyncRequestTraits<RequestFunc>::ServiceType;
-            auto& w = _asyncActionQueues.at(queueIndex);
-            w->registerCallHandler(this->service<Service>(), requestFunc, std::move(handleFunc));
+            auto& queue = _asyncActionQueues.at(queueIndex);
+            queue->registerCallHandler(
+                this->service<Service>(), requestFunc, std::move(handleFunc), handleFuncExecutionContext);
         }
 
         template<typename RequestFunc>

@@ -82,12 +82,12 @@ namespace ShuHai::gRPC::Client
                 _responsePromise.set_exception(std::current_exception());
             }
 
-            triggerResponseCallback();
+            responseCallback();
 
             _deadCallback(this->shared_from_this());
         }
 
-        void triggerResponseCallback()
+        void responseCallback()
         {
             if (!_responseCallback)
                 return;
