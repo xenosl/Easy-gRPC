@@ -143,7 +143,7 @@ function(shuhai_grpc_add_protoc_command OUTPUT_FILES)
     _shuhai_grpc_create_output_directories()
     _shuhai_grpc_make_protoc_command()
     _shuhai_grpc_extract_protoc_output_files(OUTPUT_FILES)
-    add_custom_command(OUTPUT "${OUTPUT_FILES}" COMMAND ${PROTOC_COMMAND} DEPENDS "${OUTPUT_FILES}")
+    add_custom_command(OUTPUT ${OUTPUT_FILES} COMMAND ${PROTOC_COMMAND} DEPENDS ${PROTO_FILES})
 endfunction()
 
 # Parse the macro arguments into protoc command-line arguments.
