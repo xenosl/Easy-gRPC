@@ -89,7 +89,7 @@ function(shuhai_grpc_add_proto_targets)
     _shuhai_grpc_extract_protoc_output_files(OUTPUT_FILES)
 
     if(ARG_CODEGEN_TARGET)
-        add_custom_command(OUTPUT "${OUTPUT_FILES}" COMMAND ${PROTOC_COMMAND} DEPENDS "${OUTPUT_FILES}")
+        add_custom_command(OUTPUT ${OUTPUT_FILES} COMMAND ${PROTOC_COMMAND} DEPENDS ${PROTO_FILES})
         add_custom_target(${ARG_CODEGEN_TARGET} DEPENDS ${OUTPUT_FILES})
     endif()
 
